@@ -1,0 +1,47 @@
+table _Medidas
+	lineageTag: 28e5bc1b-ea10-4fbd-a4c0-b7795a8d2e00
+
+	measure 'Valor Total' = SUM(fatLancamentosDRE[valor])
+		formatString: "R$"\ #,0.00;-"R$"\ #,0.00;"R$"\ #,0.00
+		lineageTag: 291ed9d1-0e84-4b39-a3b8-ef2bc3c310ff
+
+		annotation PBI_FormatHint = {"currencyCulture":"pt-BR"}
+
+	measure 'Valor Acum' =
+			CALCULATE(
+			    SUM(fatLancamentosDRE[valor]),
+			    FILTER(
+			        ALL(dimFormatoDRE),
+			        dimFormatoDRE[grupo_id]<=MAX(dimFormatoDRE[grupo_id])
+			    )
+			)
+		lineageTag: 8b5fcbd2-9807-42a9-9902-84ce07874147
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure Subtotal? =
+			IF(
+			    SELECTEDVALUE(dimFormatoDRE[subtotal]) = 0,
+			    [Valor Total],
+			    [Valor Acum]
+			)
+		formatString: "R$"\ #,0.00;-"R$"\ #,0.00;"R$"\ #,0.00
+		lineageTag: 1bafcaca-dace-49ed-8863-7c4aa9dfb26a
+
+		annotation PBI_FormatHint = {"currencyCulture":"pt-BR"}
+
+	column Column
+		formatString: 0
+		lineageTag: f5fb4818-b118-4ba9-9857-a744e9655d02
+		summarizeBy: sum
+		isNameInferred
+		sourceColumn: [Column]
+
+		annotation SummarizationSetBy = Automatic
+
+	partition _Medidas = calculated
+		mode: import
+		source = Row("Column", BLANK())
+
+	annotation PBI_Id = 3c953d0998d84c658ff1b5a71525892f
+

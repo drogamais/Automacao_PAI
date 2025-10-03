@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Report",
+    "displayName": "DRE_PAI"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "8dc05a43-b9e0-4cf0-856e-0a6a1f75fcc4"
+  }
+}

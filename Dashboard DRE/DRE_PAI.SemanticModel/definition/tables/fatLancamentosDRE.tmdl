@@ -1,0 +1,83 @@
+table fatLancamentosDRE
+	lineageTag: bf6d05f9-52a6-40e6-85dc-013c4f17ecc3
+
+	column id_lancamento
+		dataType: int64
+		formatString: 0
+		lineageTag: 1bb54f3d-705d-4dfe-9b91-9cdaaecb4262
+		summarizeBy: sum
+		sourceColumn: id_lancamento
+
+		annotation SummarizationSetBy = Automatic
+
+	column loja_numero
+		dataType: int64
+		formatString: 0
+		lineageTag: 8dd7123d-fff1-4e22-a936-aad6ad649e19
+		summarizeBy: none
+		sourceColumn: loja_numero
+
+		annotation SummarizationSetBy = Automatic
+
+	column data_aprovacao
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: 38d99ef1-adef-4a83-bdf2-e649cbd9725a
+		summarizeBy: none
+		sourceColumn: data_aprovacao
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column indicador_nome
+		dataType: string
+		lineageTag: ffb363d4-51e2-4c02-aaf6-92d5b842be3f
+		summarizeBy: none
+		sourceColumn: indicador_nome
+
+		annotation SummarizationSetBy = Automatic
+
+	column valor
+		dataType: double
+		lineageTag: 1c34465d-8109-4794-8b75-ba442f294c68
+		summarizeBy: sum
+		sourceColumn: valor
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column percentual
+		dataType: double
+		lineageTag: 7567f238-a37d-4aac-96f7-9df6b831c1eb
+		summarizeBy: sum
+		sourceColumn: percentual
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column loja_nome
+		dataType: string
+		lineageTag: f51eb42b-e62d-4b20-b016-620a8745613f
+		summarizeBy: none
+		sourceColumn: loja_nome
+
+		annotation SummarizationSetBy = Automatic
+
+	partition fatLancamentosDRE = m
+		mode: import
+		source =
+				let
+				    Fonte = Odbc.DataSource("dsn=dbDrogamais", [HierarchicalNavigation=true]),
+				    dbDrogamais_Database = Fonte{[Name="dbDrogamais",Kind="Database"]}[Data],
+				    bronze_drg_lancamentos_Table = dbDrogamais_Database{[Name="bronze_drg_lancamentos",Kind="Table"]}[Data],
+				    #"Tipo Alterado" = Table.TransformColumnTypes(bronze_drg_lancamentos_Table,{{"percentual", type number}})
+				in
+				    #"Tipo Alterado"
+
+	annotation PBI_NavigationStepName = Navegação
+
+	annotation PBI_ResultType = Table
+

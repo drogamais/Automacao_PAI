@@ -1,0 +1,44 @@
+table dimFormatoDRE
+	lineageTag: 953ed05a-6668-4186-9e6e-14581aae5d8b
+
+	column grupo_id
+		dataType: int64
+		formatString: 0
+		lineageTag: 6848a064-9f17-4d4c-81fb-f347ab5b36ee
+		summarizeBy: none
+		sourceColumn: grupo_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column grupo_nome
+		dataType: string
+		lineageTag: 15b4a08c-6cae-4e0c-9c8e-a31fe383f02e
+		summarizeBy: none
+		sourceColumn: grupo_nome
+		sortByColumn: grupo_id
+
+		changedProperty = SortByColumn
+
+		annotation SummarizationSetBy = Automatic
+
+	column subtotal
+		dataType: int64
+		formatString: 0
+		lineageTag: f3e6fb30-c07a-4ccb-8508-2d84ab52141f
+		summarizeBy: none
+		sourceColumn: subtotal
+
+		annotation SummarizationSetBy = Automatic
+
+	partition dimFormatoDRE = m
+		mode: import
+		source =
+				let
+				    Fonte = Excel.Workbook(File.Contents("C:\Users\altaneiro.analista01\Desktop\DRE PAI\planilhas\NOMENCLATURA FINANCEIRO.xlsx"), null, true),
+				    Tabela4_Table = Fonte{[Item="Tabela4",Kind="Table"]}[Data],
+				    #"Tipo Alterado" = Table.TransformColumnTypes(Tabela4_Table,{{"grupo_id", Int64.Type}, {"grupo_nome", type text}, {"subtotal", Int64.Type}})
+				in
+				    #"Tipo Alterado"
+
+	annotation PBI_ResultType = Table
+

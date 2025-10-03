@@ -1,0 +1,54 @@
+table dimIndicadores
+	lineageTag: b9b77565-d2ed-4046-aad8-b8ba04c5e9d4
+
+	column indicador_id
+		dataType: int64
+		formatString: 0
+		lineageTag: 84e9d756-ea0f-47e9-af67-cda349249fb7
+		summarizeBy: sum
+		sourceColumn: indicador_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column indicador_nome
+		dataType: string
+		lineageTag: 9d97dd8a-aaa0-49e9-a3c5-a9840ac6354c
+		summarizeBy: none
+		sourceColumn: indicador_nome
+		sortByColumn: indicador_id
+
+		changedProperty = SortByColumn
+
+		annotation SummarizationSetBy = Automatic
+
+	column grupo_id
+		dataType: int64
+		formatString: 0
+		lineageTag: 31901967-0c2a-4ae6-ba81-7cc5a43e8477
+		summarizeBy: none
+		sourceColumn: grupo_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column grupo_nome
+		dataType: string
+		lineageTag: d973c801-ae21-4d4d-ab8c-60bdf4a4375b
+		summarizeBy: none
+		sourceColumn: grupo_nome
+
+		annotation SummarizationSetBy = Automatic
+
+	partition dimIndicadores = m
+		mode: import
+		source =
+				let
+				    Fonte = Excel.Workbook(File.Contents("C:\Users\altaneiro.analista01\Desktop\DRE PAI\planilhas\NOMENCLATURA FINANCEIRO.xlsx"), null, true),
+				    Tabela3_Table = Fonte{[Item="Tabela3",Kind="Table"]}[Data],
+				    #"Tipo Alterado" = Table.TransformColumnTypes(Tabela3_Table,{{"indicador_id", Int64.Type}, {"indicador_nome", type text}, {"grupo_id", Int64.Type}, {"grupo_nome", type text}})
+				in
+				    #"Tipo Alterado"
+
+	annotation PBI_ResultType = Table
+
+	annotation PBI_NavigationStepName = Navegação
+

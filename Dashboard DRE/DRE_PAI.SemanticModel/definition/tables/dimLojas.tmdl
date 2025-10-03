@@ -1,0 +1,462 @@
+table dimLojas
+	lineageTag: ffdcff48-bb26-429d-b9ec-fe60fdacdd0d
+
+	column id_loja
+		dataType: int64
+		formatString: 0
+		lineageTag: 1dac255c-4c16-4336-86a7-a3682a454511
+		summarizeBy: sum
+		sourceColumn: id_loja
+
+		annotation SummarizationSetBy = Automatic
+
+	column loja_numero
+		dataType: int64
+		formatString: 0
+		lineageTag: 42f5bb5e-da22-417d-b0fd-135e1709dafe
+		summarizeBy: none
+		sourceColumn: loja_numero
+
+		annotation SummarizationSetBy = Automatic
+
+	column fantasia
+		dataType: string
+		lineageTag: e10764bb-66c9-4c82-8c88-accbeccbf90b
+		summarizeBy: none
+		sourceColumn: fantasia
+
+		annotation SummarizationSetBy = Automatic
+
+	column razao_social
+		dataType: string
+		lineageTag: ad7a0c5f-3b17-4256-b9de-ed0ca942f783
+		summarizeBy: none
+		sourceColumn: razao_social
+
+		annotation SummarizationSetBy = Automatic
+
+	column cnpj
+		dataType: string
+		lineageTag: 97fb5c26-6763-477c-bab1-9a4f4c8bcf60
+		summarizeBy: none
+		sourceColumn: cnpj
+
+		annotation SummarizationSetBy = Automatic
+
+	column inscricao_estadual
+		dataType: string
+		lineageTag: 1e174659-5a89-415b-8cf0-f3558633f80d
+		summarizeBy: none
+		sourceColumn: inscricao_estadual
+
+		annotation SummarizationSetBy = Automatic
+
+	column logradouro
+		dataType: string
+		lineageTag: b23f6cc7-b9fd-4d51-b523-c21ea08740f7
+		summarizeBy: none
+		sourceColumn: logradouro
+
+		annotation SummarizationSetBy = Automatic
+
+	column end_numero
+		dataType: string
+		lineageTag: 5aa3c895-7a55-4685-abd4-389302a247e0
+		summarizeBy: none
+		sourceColumn: end_numero
+
+		annotation SummarizationSetBy = Automatic
+
+	column end_complemento
+		dataType: string
+		lineageTag: 0d8d2474-f399-4f74-aa0b-feb2b157b5ba
+		summarizeBy: none
+		sourceColumn: end_complemento
+
+		annotation SummarizationSetBy = Automatic
+
+	column end_bairro
+		dataType: string
+		lineageTag: e6d01977-d32a-48c2-a59d-171108a67a98
+		summarizeBy: none
+		sourceColumn: end_bairro
+
+		annotation SummarizationSetBy = Automatic
+
+	column cep
+		dataType: string
+		lineageTag: 98c1bbe4-d5d6-4d72-bce7-d3bcefb974a4
+		summarizeBy: none
+		sourceColumn: cep
+
+		annotation SummarizationSetBy = Automatic
+
+	column telefone_fixo1
+		dataType: string
+		lineageTag: f4009fe5-abee-4942-a850-9c6aca80a79f
+		summarizeBy: none
+		sourceColumn: telefone_fixo1
+
+		annotation SummarizationSetBy = Automatic
+
+	column telefone_fixo2
+		dataType: string
+		lineageTag: 490a0647-ccde-43dd-aa6e-c81322a886d3
+		summarizeBy: none
+		sourceColumn: telefone_fixo2
+
+		annotation SummarizationSetBy = Automatic
+
+	column telefone_movel
+		dataType: string
+		lineageTag: d50dcf65-1bf9-44f1-9e36-f2a1b1f4d673
+		summarizeBy: none
+		sourceColumn: telefone_movel
+
+		annotation SummarizationSetBy = Automatic
+
+	column fax
+		dataType: string
+		lineageTag: 9d0e76d6-29f8-4ab0-98b5-72735f5bf93b
+		summarizeBy: none
+		sourceColumn: fax
+
+		annotation SummarizationSetBy = Automatic
+
+	column email_1
+		dataType: string
+		lineageTag: a5c59743-5d93-45f6-b4ba-f6c8c504b987
+		summarizeBy: none
+		sourceColumn: email_1
+
+		annotation SummarizationSetBy = Automatic
+
+	column email_2
+		dataType: string
+		lineageTag: 2826f9c2-9a26-48cd-8da8-56c4ae6fd925
+		summarizeBy: none
+		sourceColumn: email_2
+
+		annotation SummarizationSetBy = Automatic
+
+	column ativo
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: f444dbd8-d737-4f6a-a865-8223f5b6b18b
+		summarizeBy: none
+		sourceColumn: ativo
+
+		annotation SummarizationSetBy = Automatic
+
+	column inaugurada
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: cb660d3f-a3cc-4332-9a01-495a4f756da1
+		summarizeBy: none
+		sourceColumn: inaugurada
+
+		annotation SummarizationSetBy = Automatic
+
+	column responsavel
+		dataType: string
+		lineageTag: 096fdc48-ac5e-46b3-99de-c0b4db441c7b
+		summarizeBy: none
+		sourceColumn: responsavel
+
+		annotation SummarizationSetBy = Automatic
+
+	column id_cidade
+		dataType: int64
+		formatString: 0
+		lineageTag: 50670222-4486-4830-b2a4-814c69343297
+		summarizeBy: sum
+		sourceColumn: id_cidade
+
+		annotation SummarizationSetBy = Automatic
+
+	column cidade
+		dataType: string
+		lineageTag: 28936f19-266c-40dd-960f-88c9de875b06
+		summarizeBy: none
+		sourceColumn: cidade
+
+		annotation SummarizationSetBy = Automatic
+
+	column sisterma_erp
+		dataType: string
+		lineageTag: 64eb1d91-8a3c-4458-b1de-d8f6a9b30031
+		summarizeBy: none
+		sourceColumn: sisterma_erp
+
+		annotation SummarizationSetBy = Automatic
+
+	column data_cadastro
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 07818070-52e6-493f-bc11-6cbc21be2df2
+		summarizeBy: none
+		sourceColumn: data_cadastro
+
+		variation Variation
+			isDefault
+			relationship: 49fb8170-486f-4234-aea9-4045be59c881
+			defaultHierarchy: LocalDateTable_8ab516f2-a2a8-4540-b501-3ff3bb93f38c.'Hierarquia de datas'
+
+		annotation SummarizationSetBy = Automatic
+
+	column data_inauguracao
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: e744332b-9d0d-499f-a2ab-82374672dcd0
+		summarizeBy: none
+		sourceColumn: data_inauguracao
+
+		variation Variation
+			isDefault
+			relationship: 4c5d1949-0544-4622-a306-0cbf643ce6ea
+			defaultHierarchy: LocalDateTable_c2889c39-4516-4c44-bffb-c1741ab2cf28.'Hierarquia de datas'
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column data_associacao
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: 89e279df-b110-4d70-8db7-03ed3e083a97
+		summarizeBy: none
+		sourceColumn: data_associacao
+
+		variation Variation
+			isDefault
+			relationship: c983f539-7c11-4a44-a030-6194d635ad46
+			defaultHierarchy: LocalDateTable_409f2b0d-c1ca-410f-83a0-d7420bd1e39b.'Hierarquia de datas'
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column data_desassociacao
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: dfa2c16e-0410-45f8-9748-1a6a73572eea
+		summarizeBy: none
+		sourceColumn: data_desassociacao
+
+		variation Variation
+			isDefault
+			relationship: 1cc58b1a-4051-4942-81f1-146b1d44bd0a
+			defaultHierarchy: LocalDateTable_0a275521-d3a5-47f6-9161-c4119ddf6633.'Hierarquia de datas'
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column pec_ultimo_estudo
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: c106e3aa-97d8-49ce-b6ae-22b4fcaa2202
+		summarizeBy: none
+		sourceColumn: pec_ultimo_estudo
+
+		variation Variation
+			isDefault
+			relationship: 21283795-5372-422f-a5f3-597dfccd0612
+			defaultHierarchy: LocalDateTable_6ead609c-c916-4272-aca7-53004e79d763.'Hierarquia de datas'
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column id_plugpharma
+		dataType: int64
+		formatString: 0
+		lineageTag: 1605435d-8e6f-4321-bd35-fa4dbd2cbf24
+		summarizeBy: sum
+		sourceColumn: id_plugpharma
+
+		annotation SummarizationSetBy = Automatic
+
+	column certificado_vencimento
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: 22b91d84-674a-47e5-ada7-eb9a3e4e04fc
+		summarizeBy: none
+		sourceColumn: certificado_vencimento
+
+		variation Variation
+			isDefault
+			relationship: 75e200f7-3bf0-440b-a55b-433fc98899a6
+			defaultHierarchy: LocalDateTable_a973bb4d-b177-437f-8916-00f024f2f5e7.'Hierarquia de datas'
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column pec_id_convenio
+		dataType: string
+		lineageTag: d76fee74-14da-480d-8233-6a79d08946c9
+		summarizeBy: none
+		sourceColumn: pec_id_convenio
+
+		annotation SummarizationSetBy = Automatic
+
+	column pec_cod_acesso
+		dataType: string
+		lineageTag: 60d2dc8f-389f-4dcd-8d59-ace06830a44c
+		summarizeBy: none
+		sourceColumn: pec_cod_acesso
+
+		annotation SummarizationSetBy = Automatic
+
+	column id_grupo_empresarial
+		dataType: int64
+		formatString: 0
+		lineageTag: c455a3e9-9cda-451c-96bd-97ababa53e0a
+		summarizeBy: sum
+		sourceColumn: id_grupo_empresarial
+
+		annotation SummarizationSetBy = Automatic
+
+	column farmacia_popular
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: 3a847522-ed4f-4f26-822b-941303c497f5
+		summarizeBy: none
+		sourceColumn: farmacia_popular
+
+		annotation SummarizationSetBy = Automatic
+
+	column faturamento_inicial
+		dataType: double
+		lineageTag: 5a2f7b0b-1922-4be2-a6b2-648abc8d7647
+		summarizeBy: sum
+		sourceColumn: faturamento_inicial
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column polo
+		dataType: string
+		lineageTag: 93a17da8-76b8-4b74-9cca-5116db506a1b
+		summarizeBy: none
+		sourceColumn: polo
+
+		annotation SummarizationSetBy = Automatic
+
+	column focal
+		dataType: string
+		lineageTag: 665cf0d7-417b-4235-9e6b-42afaddc0166
+		summarizeBy: none
+		sourceColumn: focal
+
+		annotation SummarizationSetBy = Automatic
+
+	column cod_movidesk
+		dataType: string
+		lineageTag: 8f2e77b6-ffca-4e29-a8d6-8443eb5d4983
+		summarizeBy: none
+		sourceColumn: cod_movidesk
+
+		annotation SummarizationSetBy = Automatic
+
+	column observacao
+		dataType: string
+		lineageTag: 959eee16-9aba-4c00-af60-5b33691e64ed
+		summarizeBy: none
+		sourceColumn: observacao
+
+		annotation SummarizationSetBy = Automatic
+
+	column latitude
+		dataType: double
+		lineageTag: 0a95bc3c-e0a6-4365-90d4-efccabc6efe4
+		summarizeBy: sum
+		sourceColumn: latitude
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column longiude
+		dataType: double
+		lineageTag: 48f3821e-2712-44c2-b3db-d2a5cc593138
+		summarizeBy: sum
+		sourceColumn: longiude
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column situacao
+		dataType: int64
+		formatString: 0
+		lineageTag: c5b6ee3a-02fe-4c2e-ab81-7098ea30a64e
+		summarizeBy: sum
+		sourceColumn: situacao
+
+		annotation SummarizationSetBy = Automatic
+
+	column pec_app
+		dataType: string
+		lineageTag: efd45481-d605-4ba1-9881-a9273f356881
+		summarizeBy: none
+		sourceColumn: pec_app
+
+		annotation SummarizationSetBy = Automatic
+
+	column ultima_atualizacao
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 821382ee-4e42-4cab-bfec-e256271b07a5
+		summarizeBy: none
+		sourceColumn: ultima_atualizacao
+
+		variation Variation
+			isDefault
+			relationship: 1a9e3b7b-81e8-4395-ab92-899cd8372fcb
+			defaultHierarchy: LocalDateTable_60685cac-7994-4e1c-93e1-d694009e21ea.'Hierarquia de datas'
+
+		annotation SummarizationSetBy = Automatic
+
+	column cnpj_s
+		dataType: string
+		lineageTag: 7502b082-eabf-4aee-8e75-a17c11ebea57
+		summarizeBy: none
+		sourceColumn: cnpj_s
+
+		annotation SummarizationSetBy = Automatic
+
+	column cat
+		dataType: int64
+		formatString: 0
+		lineageTag: 8d76a888-0b0d-4326-abf2-77f4b8fb0f4f
+		summarizeBy: sum
+		sourceColumn: cat
+
+		annotation SummarizationSetBy = Automatic
+
+	column utc
+		dataType: string
+		lineageTag: d011a1b3-915d-4581-b41d-6898dce744c7
+		summarizeBy: none
+		sourceColumn: utc
+
+		annotation SummarizationSetBy = Automatic
+
+	partition dimLojas = m
+		mode: import
+		source =
+				let
+				    Fonte = Odbc.DataSource("dsn=dbDrogamais", [HierarchicalNavigation=true]),
+				    dbDrogamais_Database = Fonte{[Name="dbDrogamais",Kind="Database"]}[Data],
+				    bronze_lojas_Table = dbDrogamais_Database{[Name="bronze_lojas",Kind="Table"]}[Data],
+				    #"Linhas Filtradas" = Table.SelectRows(bronze_lojas_Table, each ([loja_numero] <> null))
+				in
+				    #"Linhas Filtradas"
+
+	annotation PBI_NavigationStepName = Navegação
+
+	annotation PBI_ResultType = Table
+
