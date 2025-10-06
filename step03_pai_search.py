@@ -15,6 +15,7 @@ def stoppable_sleep(duration, gui_callback):
 def executar_busca_lojas(driver, wait, ano_alvo, gui_callback):
     """
     Navega até a tela de efetividade, filtra e extrai os CNPJs das lojas com lançamentos.
+    Retorna uma lista de CNPJs.
     """
     try:
         print("Aguardando a página principal do PAI carregar completamente...")
@@ -50,9 +51,8 @@ def executar_busca_lojas(driver, wait, ano_alvo, gui_callback):
         gui_callback.atualizar_progresso(50, 100, "Emitindo relatório... Aguardando resultados...", is_search=True)
         print("Aguardando a tabela de resultados carregar...")
         
-        # Espera a tabela (o tbody) aparecer para garantir que os dados carregaram
         wait.until(EC.presence_of_element_located((By.XPATH, "//tbody")))
-        stoppable_sleep(2, gui_callback) # Pausa extra para renderização final
+        stoppable_sleep(2, gui_callback)
 
         gui_callback.atualizar_progresso(75, 100, "Extraindo dados da tabela...", is_search=True)
         
@@ -69,20 +69,18 @@ def executar_busca_lojas(driver, wait, ano_alvo, gui_callback):
             
             celulas = linha.find_elements(By.TAG_NAME, "td")
             
-            # Garante que a linha tem colunas suficientes
             if len(celulas) < 14:
                 continue
 
+            # A primeira célula contém o CNPJ
             cnpj = celulas[0].text.strip()
             
-            # Verifica as colunas de meses (da 3ª à 14ª, que são os índices 2 a 13)
-            for i in range(2, 14):
+            for i in range(2, 14): # Verifica as colunas dos meses (índices 2 a 13)
                 texto_celula = celulas[i].text.strip()
-                # Se a célula do mês não estiver vazia, significa que houve lançamento
                 if texto_celula:
-                    cnpjs_com_lancamento.append(cnpj)
-                    print(f"Lançamento encontrado para o CNPJ: {cnpj}")
-                    break # Para o loop interno e vai para a próxima linha (tr)
+                    if cnpj not in cnpjs_com_lancamento:
+                        cnpjs_com_lancamento.append(cnpj)
+                    break 
 
         gui_callback.atualizar_progresso(100, 100, "Busca finalizada!", is_search=True)
         return cnpjs_com_lancamento

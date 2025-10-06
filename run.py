@@ -33,10 +33,6 @@ DB_PORT = 3306
 DB_NAME = "dbDrogamais"
 
 def check_internet_connection(host="8.8.8.8", port=53, timeout=3):
-    """
-    Tenta se conectar a um servidor externo (DNS do Google) para
-    verificar se há uma conexão ativa com a internet.
-    """
     try:
         socket.setdefaulttimeout(timeout)
         socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect((host, port))
@@ -86,6 +82,24 @@ def buscar_cnpj_no_banco(loja_numero):
     finally:
         if conn: conn.close()
 
+def buscar_lojas_por_cnpjs(cnpjs):
+    """Busca no banco os dados das lojas a partir de uma lista de CNPJs."""
+    if not cnpjs:
+        return []
+    conn = None
+    try:
+        conn = mariadb.connect(user=DB_USER, password=DB_PASSWORD, host=DB_HOST, port=DB_PORT, database=DB_NAME)
+        cursor = conn.cursor(dictionary=True)
+        placeholders = ', '.join(['%s'] * len(cnpjs))
+        query = f"SELECT loja_numero, cnpj, fantasia FROM bronze_lojas WHERE cnpj IN ({placeholders})"
+        cursor.execute(query, tuple(cnpjs))
+        return cursor.fetchall()
+    except mariadb.Error as e:
+        print(f"Erro ao buscar lojas por CNPJ: {e}")
+        return []
+    finally:
+        if conn: conn.close()
+
 def setup_driver(debug_mode):
     caminho_script = os.path.dirname(os.path.realpath(__file__))
     pasta_downloads = os.path.join(caminho_script, "downloads")
@@ -118,20 +132,16 @@ def setup_driver(debug_mode):
         
     return driver
 
+
+# --- WORKFLOWS ---
 def executar_workflow_completo(loja_numero, ano_alvo, mes_inicial, mes_final, gui_callback, debug_mode):
     driver = None
     try:
-        gui_callback.atualizar_progresso(0, 100, "Verificando conexão com a internet...")
-        if not check_internet_connection():
-            gui_callback.finalizar_automacao(sucesso=False, mensagem="Sem conexão com a internet.")
-            return
-
-        fechar_processos_excel()
         limpar_pasta_downloads()
         gui_callback.atualizar_progresso(0, 100, f"Buscando CNPJ para a loja {loja_numero}...")
         cnpj_selecionado = buscar_cnpj_no_banco(loja_numero)
         if not cnpj_selecionado:
-            raise ValueError(f"Loja {loja_numero} não encontrada.")
+            raise ValueError(f"Loja {loja_numero} não encontrada no banco de dados.")
         
         gui_callback.atualizar_progresso(0, 100, f"CNPJ {cnpj_selecionado} encontrado. Iniciando navegador...")
         driver = setup_driver(debug_mode)
@@ -139,36 +149,22 @@ def executar_workflow_completo(loja_numero, ano_alvo, mes_inicial, mes_final, gu
         
         if gui_callback.stop_requested: raise InterruptedError("Parada solicitada.")
         gui_callback.atualizar_progresso(0, 100, "Realizando login...")
-        # --- LINHA CORRIGIDA ---
         step01_login_actions.login_e_navega_para_pai(driver, wait, gui_callback)
         
         if gui_callback.stop_requested: raise InterruptedError("Parada solicitada.")
         step02_pai_actions.executar_acoes_pai(driver, wait, cnpj_selecionado, ano_alvo, mes_inicial, mes_final, gui_callback)
         
         if driver: driver.quit()
+        driver = None # Garante que o driver seja recriado para a próxima loja no lote
 
         if gui_callback.stop_requested: raise InterruptedError("Parada solicitada.")
-        gui_callback.atualizar_progresso(0, 100, "Processando planilhas de Financeiro...")
+        gui_callback.atualizar_progresso(50, 100, "Processando planilhas de Financeiro e Performance...")
         processar_financeiro.main()
-
-        if gui_callback.stop_requested: raise InterruptedError("Parada solicitada.")
-        gui_callback.atualizar_progresso(50, 100, "Processando planilhas de Performance...")
         processar_performance.main()
         
-        if not gui_callback.stop_requested:
-            gui_callback.finalizar_automacao(sucesso=True)
-
-    except InterruptedError as e:
-        print(f"Processo interrompido pelo usuário: {e}")
-        if driver: driver.quit()
-        gui_callback.finalizar_automacao()
-    except Exception as e:
-        print(f"\nOcorreu um erro fatal na execução: {e}")
-        if driver: 
-            driver.save_screenshot("erro_screenshot_fatal.png")
+    finally:
+        if driver:
             driver.quit()
-        if not gui_callback.stop_requested:
-            gui_callback.finalizar_automacao(sucesso=False, mensagem=f"Erro fatal: {e}")
 
 def executar_workflow_evolucao(loja_numero, ano_alvo, mes_inicial, mes_final, gui_callback, debug_mode):
     driver = None
@@ -222,7 +218,7 @@ def executar_workflow_evolucao(loja_numero, ano_alvo, mes_inicial, mes_final, gu
         if not gui_callback.stop_requested:
             gui_callback.finalizar_automacao(sucesso=False, mensagem=f"Erro fatal na Evolução Mensal: {e}")
 
-# --- NOVA FUNÇÃO DE WORKFLOW PARA BUSCA ---
+# --- WORKFLOW DE BUSCA (ATUALIZADO) ---
 def executar_workflow_busca(ano_alvo, gui_callback, debug_mode, results_callback):
     driver = None
     try:
@@ -239,17 +235,19 @@ def executar_workflow_busca(ano_alvo, gui_callback, debug_mode, results_callback
         step01_login_actions.login_e_navega_para_pai(driver, wait, gui_callback)
         
         if gui_callback.stop_requested: raise InterruptedError("Parada solicitada.")
-        lojas_encontradas = step03_pai_search.executar_busca_lojas(driver, wait, ano_alvo, gui_callback)
+        cnpjs_encontrados = step03_pai_search.executar_busca_lojas(driver, wait, ano_alvo, gui_callback)
         
-        # Envia os resultados de volta para a GUI
-        results_callback(lojas_encontradas)
+        gui_callback.atualizar_progresso(90, 100, "Buscando dados das lojas no banco...", is_search=True)
+        lojas_info = buscar_lojas_por_cnpjs(cnpjs_encontrados)
+
+        results_callback(lojas_info)
         
         if not gui_callback.stop_requested:
             gui_callback.finalizar_automacao(sucesso=True, is_search=True)
 
     except InterruptedError as e:
         print(f"Processo interrompido pelo usuário: {e}")
-        gui_callback.finalizar_automacao(sucesso=False, is_search=True)
+        gui_callback.finalizar_automacao(sucesso=False, is_search=True, mensagem="Busca interrompida.")
     except Exception as e:
         print(f"\nOcorreu um erro fatal na busca: {e}")
         if not gui_callback.stop_requested:
@@ -258,8 +256,35 @@ def executar_workflow_busca(ano_alvo, gui_callback, debug_mode, results_callback
         if driver:
             driver.quit()
 
+# --- NOVO WORKFLOW PARA EXECUÇÃO EM LOTE ---
+def executar_workflow_em_lote(lojas_selecionadas, ano_alvo, mes_inicial, mes_final, gui_callback, debug_mode):
+    total_lojas = len(lojas_selecionadas)
+    gui_callback.atualizar_progresso(0, total_lojas, f"Iniciando automação em lote para {total_lojas} lojas.")
+    
+    for i, (chk_widget, loja_info) in enumerate(lojas_selecionadas):
+        loja_numero = loja_info['loja_numero']
+        if gui_callback.stop_requested:
+            gui_callback.finalizar_automacao(sucesso=False, mensagem="Processo em lote interrompido.")
+            return
+
+        gui_callback.atualizar_progresso(i, total_lojas, f"Processando loja {i+1}/{total_lojas}: {loja_numero} - {loja_info['fantasia']}")
+        
+        try:
+            # Reutiliza a função de workflow completo para cada loja
+            executar_workflow_completo(str(loja_numero), ano_alvo, mes_inicial, mes_final, gui_callback, debug_mode)
+            # Se a automação para a loja foi bem-sucedida, marca na GUI
+            gui_callback.marcar_loja_como_concluida(chk_widget)
+        except Exception as e:
+            print(f"Erro ao processar a loja {loja_numero}: {e}")
+            continue
+            
+    if not gui_callback.stop_requested:
+        gui_callback.atualizar_progresso(total_lojas, total_lojas, "Automação em lote finalizada.")
+        gui_callback.finalizar_automacao(sucesso=True, mensagem="Todas as lojas selecionadas foram processadas.")
+
+
 if __name__ == "__main__":
     root = tk.Tk()
     app = AutomationGUI(root)
-    app.set_automation_callbacks(executar_workflow_completo, executar_workflow_evolucao, executar_workflow_busca)
+    app.set_automation_callbacks(executar_workflow_completo, executar_workflow_evolucao, executar_workflow_busca, executar_workflow_em_lote)
     root.mainloop()
