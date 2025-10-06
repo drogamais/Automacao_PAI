@@ -1,5 +1,3 @@
-# Arquivo: step02_pai_actions.py
-
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -12,31 +10,65 @@ def stoppable_sleep(duration, gui_callback):
             raise InterruptedError("Parada solicitada durante a espera.")
         time.sleep(1)
 
-def executar_acoes_pai(driver, wait, cnpj_alvo, gui_callback):
+def _selecionar_ano(driver, wait, ano_alvo_str, gui_callback):
+    """Função auxiliar para navegar até o ano correto."""
+    ano_alvo = int(ano_alvo_str)
+    
+    btn_ano_atual_xpath = "//div[contains(@class, 'toolbar')]//button[2]"
+    btn_anterior_xpath = "//button[i[contains(@class, 'fa-chevron-left')]]"
+    btn_proximo_xpath = "//button[i[contains(@class, 'fa-chevron-right')]]"
+
+    for _ in range(10): 
+        if gui_callback.stop_requested: raise InterruptedError("Parada solicitada.")
+
+        ano_atual_elem = wait.until(EC.visibility_of_element_located((By.XPATH, btn_ano_atual_xpath)))
+        ano_atual = int(ano_atual_elem.text)
+
+        if ano_atual == ano_alvo:
+            print(f"Ano {ano_alvo} selecionado.")
+            return
+        elif ano_atual > ano_alvo:
+            print(f"Ano atual ({ano_atual}) > Alvo ({ano_alvo}). Clicando em 'Anterior'.")
+            driver.find_element(By.XPATH, btn_anterior_xpath).click()
+        else:
+            print(f"Ano atual ({ano_atual}) < Alvo ({ano_alvo}). Clicando em 'Próximo'.")
+            driver.find_element(By.XPATH, btn_proximo_xpath).click()
+        
+        stoppable_sleep(1, gui_callback)
+
+    raise Exception(f"Não foi possível selecionar o ano {ano_alvo} após 10 tentativas.")
+
+def executar_acoes_pai(driver, wait, cnpj_alvo, ano_alvo, mes_inicial, mes_final, gui_callback):
     """
-    Executa o processo de download, verifica a flag de parada a cada iteração
-    e envia atualizações de progresso para a GUI.
+    Executa o processo de download com ano e meses dinâmicos.
     """
-    print(f"\nINICIANDO PROCESSAMENTO PARA O CNPJ: {cnpj_alvo}")
+    print(f"\nINICIANDO PROCESSAMENTO PARA O CNPJ: {cnpj_alvo} | Período: {mes_inicial}/{ano_alvo} a {mes_final}/{ano_alvo}")
     
     try:
-        # VERIFICAÇÃO DE PARADA ANTES DE COMEÇAR
-        if gui_callback.stop_requested: raise InterruptedError("Parada solicitada antes da contagem.")
-        
+        # Lógica para aplicar filtros
+        def aplicar_filtros_completos():
+            wait.until(EC.element_to_be_clickable((By.XPATH, "//a[contains(., 'Avaliação')]"))).click(); stoppable_sleep(2, gui_callback)
+            wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Loja')]"))).click(); stoppable_sleep(1, gui_callback)
+            wait.until(EC.element_to_be_clickable((By.XPATH, "//div[contains(@class, 'combobox') and .//span[text()='Selecione...']]"))).click(); stoppable_sleep(1, gui_callback)
+            wait.until(EC.visibility_of_element_located((By.XPATH, "//input[@placeholder='Localizar']"))).send_keys(cnpj_alvo); stoppable_sleep(2, gui_callback)
+            wait.until(EC.element_to_be_clickable((By.XPATH, f"//div[contains(@class, 'list-item') and contains(text(), '{cnpj_alvo}')]"))).click(); stoppable_sleep(1, gui_callback)
+            
+            # Período Inicial
+            wait.until(EC.element_to_be_clickable((By.XPATH, "//div[contains(@class, 'combobox') and .//span[text()='Período inicial...']]"))).click(); stoppable_sleep(1, gui_callback)
+            _selecionar_ano(driver, wait, ano_alvo, gui_callback)
+            wait.until(EC.element_to_be_clickable((By.XPATH, f"//li[normalize-space()='{mes_inicial}']"))).click()
+            
+            # Período Final
+            wait.until(EC.element_to_be_clickable((By.XPATH, "//div[contains(@class, 'combobox') and .//span[text()='Período final...']]"))).click(); stoppable_sleep(1, gui_callback)
+            _selecionar_ano(driver, wait, ano_alvo, gui_callback)
+            wait.until(EC.element_to_be_clickable((By.XPATH, f"//li[normalize-space()='{mes_final}']"))).click()
+            
+            wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Aplicar filtros')]"))).click()
+            stoppable_sleep(3, gui_callback)
+
+        # Primeira aplicação de filtros para contagem
         gui_callback.atualizar_progresso(0, 100, "Filtrando para contar relatórios...")
-        seletor_avaliacao_inicial = (By.XPATH, "//a[contains(., 'Avaliação')]")
-        wait.until(EC.element_to_be_clickable(seletor_avaliacao_inicial)).click()
-        stoppable_sleep(2, gui_callback)
-        wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Loja')]"))).click(); stoppable_sleep(1, gui_callback)
-        wait.until(EC.element_to_be_clickable((By.XPATH, "//div[contains(@class, 'combobox') and .//span[text()='Selecione...']]"))).click(); stoppable_sleep(1, gui_callback)
-        wait.until(EC.visibility_of_element_located((By.XPATH, "//input[@placeholder='Localizar']"))).send_keys(cnpj_alvo); stoppable_sleep(2, gui_callback)
-        wait.until(EC.element_to_be_clickable((By.XPATH, f"//div[contains(@class, 'list-item') and contains(text(), '{cnpj_alvo}')]"))).click(); stoppable_sleep(1, gui_callback)
-        wait.until(EC.element_to_be_clickable((By.XPATH, "//div[contains(@class, 'combobox') and .//span[text()='Período inicial...']]"))).click(); stoppable_sleep(1, gui_callback)
-        wait.until(EC.element_to_be_clickable((By.XPATH, "//li[normalize-space()='Jan']"))).click()
-        wait.until(EC.element_to_be_clickable((By.XPATH, "//div[contains(@class, 'combobox') and .//span[text()='Período final...']]"))).click(); stoppable_sleep(1, gui_callback)
-        wait.until(EC.element_to_be_clickable((By.XPATH, "//li[normalize-space()='Dez']"))).click()
-        wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Aplicar filtros')]"))).click()
-        stoppable_sleep(3, gui_callback)
+        aplicar_filtros_completos()
         
         seletor_botoes_consulta = (By.XPATH, "//button[@tooltip='Consultar Lançamentos']")
         numero_de_relatorios = len(driver.find_elements(*seletor_botoes_consulta))
@@ -46,21 +78,13 @@ def executar_acoes_pai(driver, wait, cnpj_alvo, gui_callback):
 
         for i in range(numero_de_relatorios):
             if gui_callback.stop_requested:
-                raise InterruptedError("Parada solicitada durante o loop de downloads.")
+                raise InterruptedError("Parada solicitada.")
 
             print(f"\n--- Iniciando verificação do relatório {i + 1} de {numero_de_relatorios} ---")
             
             try:
-                wait.until(EC.element_to_be_clickable((By.XPATH, "//a[contains(., 'Avaliação')]"))).click(); stoppable_sleep(2, gui_callback)
-                wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Loja')]"))).click(); stoppable_sleep(1, gui_callback)
-                wait.until(EC.element_to_be_clickable((By.XPATH, "//div[contains(@class, 'combobox') and .//span[text()='Selecione...']]"))).click(); stoppable_sleep(1, gui_callback)
-                wait.until(EC.visibility_of_element_located((By.XPATH, "//input[@placeholder='Localizar']"))).send_keys(cnpj_alvo); stoppable_sleep(2, gui_callback)
-                wait.until(EC.element_to_be_clickable((By.XPATH, f"//div[contains(@class, 'list-item') and contains(text(), '{cnpj_alvo}')]"))).click(); stoppable_sleep(1, gui_callback)
-                wait.until(EC.element_to_be_clickable((By.XPATH, "//div[contains(@class, 'combobox') and .//span[text()='Período inicial...']]"))).click(); stoppable_sleep(1, gui_callback)
-                wait.until(EC.element_to_be_clickable((By.XPATH, "//li[normalize-space()='Jan']"))).click()
-                wait.until(EC.element_to_be_clickable((By.XPATH, "//div[contains(@class, 'combobox') and .//span[text()='Período final...']]"))).click(); stoppable_sleep(1, gui_callback)
-                wait.until(EC.element_to_be_clickable((By.XPATH, "//li[normalize-space()='Dez']"))).click()
-                wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Aplicar filtros')]"))).click(); stoppable_sleep(3, gui_callback)
+                # Reaplica os filtros dentro do loop
+                aplicar_filtros_completos()
 
                 botoes_consulta_atualizados = wait.until(EC.presence_of_all_elements_located(seletor_botoes_consulta))
                 botoes_consulta_atualizados[i].click()

@@ -12,11 +12,40 @@ def stoppable_sleep(duration, gui_callback):
             raise InterruptedError("Parada solicitada durante a espera.")
         time.sleep(1)
 
-def executar_evolution_actions(driver, wait, cnpj_alvo, gui_callback):
+def _selecionar_ano(driver, wait, ano_alvo_str, gui_callback):
+    """Função auxiliar para navegar até o ano correto."""
+    ano_alvo = int(ano_alvo_str)
+    
+    btn_ano_atual_xpath = "//div[contains(@class, 'toolbar')]//button[2]"
+    btn_anterior_xpath = "//button[i[contains(@class, 'fa-chevron-left')]]"
+    btn_proximo_xpath = "//button[i[contains(@class, 'fa-chevron-right')]]"
+
+    for _ in range(10): 
+        if gui_callback.stop_requested: raise InterruptedError("Parada solicitada.")
+
+        ano_atual_elem = wait.until(EC.visibility_of_element_located((By.XPATH, btn_ano_atual_xpath)))
+        ano_atual = int(ano_atual_elem.text)
+
+        if ano_atual == ano_alvo:
+            print(f"Ano {ano_alvo} selecionado.")
+            return
+        elif ano_atual > ano_alvo:
+            print(f"Ano atual ({ano_atual}) > Alvo ({ano_alvo}). Clicando em 'Anterior'.")
+            driver.find_element(By.XPATH, btn_anterior_xpath).click()
+        else:
+            print(f"Ano atual ({ano_atual}) < Alvo ({ano_alvo}). Clicando em 'Próximo'.")
+            driver.find_element(By.XPATH, btn_proximo_xpath).click()
+        
+        stoppable_sleep(1, gui_callback)
+
+    raise Exception(f"Não foi possível selecionar o ano {ano_alvo} após 10 tentativas.")
+
+
+def executar_evolution_actions(driver, wait, cnpj_alvo, ano_alvo, mes_inicial, mes_final, gui_callback):
     """
     Executa o processo de download da "Evolução Mensal".
     """
-    print(f"\nINICIANDO PROCESSAMENTO DE EVOLUÇÃO MENSAL PARA O CNPJ: {cnpj_alvo}")
+    print(f"\nINICIANDO PROCESSAMENTO DE EVOLUÇÃO MENSAL PARA O CNPJ: {cnpj_alvo} | Período: {mes_inicial}/{ano_alvo} a {mes_final}/{ano_alvo}")
 
     try:
         if gui_callback.stop_requested: raise InterruptedError("Parada solicitada.")
@@ -35,12 +64,19 @@ def executar_evolution_actions(driver, wait, cnpj_alvo, gui_callback):
         stoppable_sleep(2, gui_callback)
         wait.until(EC.element_to_be_clickable((By.XPATH, f"//div[contains(@class, 'list-item') and contains(text(), '{cnpj_alvo}')]"))).click()
         stoppable_sleep(1, gui_callback)
+
+        # Filtro de Período Inicial
         wait.until(EC.element_to_be_clickable((By.XPATH, "//div[contains(@class, 'combobox') and .//span[text()='Período inicial...']]"))).click()
         stoppable_sleep(1, gui_callback)
+        _selecionar_ano(driver, wait, ano_alvo, gui_callback)
         wait.until(EC.element_to_be_clickable((By.XPATH, "//li[normalize-space()='Jan']"))).click()
+
+        # Filtro de Período Final
         wait.until(EC.element_to_be_clickable((By.XPATH, "//div[contains(@class, 'combobox') and .//span[text()='Período final...']]"))).click()
         stoppable_sleep(1, gui_callback)
+        _selecionar_ano(driver, wait, ano_alvo, gui_callback)
         wait.until(EC.element_to_be_clickable((By.XPATH, "//li[normalize-space()='Dez']"))).click()
+        
         wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Aplicar filtros')]"))).click()
         stoppable_sleep(3, gui_callback)
 
@@ -65,9 +101,13 @@ def executar_evolution_actions(driver, wait, cnpj_alvo, gui_callback):
         stoppable_sleep(5, gui_callback)
 
         wait.until(EC.element_to_be_clickable((By.XPATH, "//div[contains(@class, 'combobox') and .//span[text()='Período inicial...']]"))).click(); stoppable_sleep(1, gui_callback)
-        wait.until(EC.element_to_be_clickable((By.XPATH, "//li[normalize-space()='Jan']"))).click()
+        _selecionar_ano(driver, wait, ano_alvo, gui_callback)
+        wait.until(EC.element_to_be_clickable((By.XPATH, f"//li[normalize-space()='{mes_inicial}']"))).click()
+
         wait.until(EC.element_to_be_clickable((By.XPATH, "//div[contains(@class, 'combobox') and .//span[text()='Período final...']]"))).click(); stoppable_sleep(1, gui_callback)
-        wait.until(EC.element_to_be_clickable((By.XPATH, "//li[normalize-space()='Dez']"))).click()
+        _selecionar_ano(driver, wait, ano_alvo, gui_callback)
+        wait.until(EC.element_to_be_clickable((By.XPATH, f"//li[normalize-space()='{mes_final}']"))).click()
+        
         wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Continuar')]"))).click()
         
         if gui_callback.stop_requested: raise InterruptedError("Parada solicitada.")

@@ -73,7 +73,6 @@ def limpar_pasta_downloads():
             print(f'Falha ao deletar {file_path}. Razão: {e}')
     print("Pasta de downloads limpa.")
 
-
 def buscar_cnpj_no_banco(loja_numero):
     conn = None
     try:
@@ -118,7 +117,7 @@ def setup_driver(debug_mode):
         
     return driver
 
-def executar_workflow_completo(loja_numero, gui_callback, debug_mode):
+def executar_workflow_completo(loja_numero, ano_alvo, mes_inicial, mes_final, gui_callback, debug_mode):
     driver = None
     try:
         gui_callback.atualizar_progresso(0, 100, "Verificando conexão com a internet...")
@@ -143,7 +142,7 @@ def executar_workflow_completo(loja_numero, gui_callback, debug_mode):
         step01_login_actions.login_e_navega_para_pai(driver, wait, gui_callback)
         
         if gui_callback.stop_requested: raise InterruptedError("Parada solicitada.")
-        step02_pai_actions.executar_acoes_pai(driver, wait, cnpj_selecionado, gui_callback)
+        step02_pai_actions.executar_acoes_pai(driver, wait, cnpj_selecionado, ano_alvo, mes_inicial, mes_final, gui_callback)
         
         if driver: driver.quit()
 
@@ -170,7 +169,7 @@ def executar_workflow_completo(loja_numero, gui_callback, debug_mode):
         if not gui_callback.stop_requested:
             gui_callback.finalizar_automacao(sucesso=False, mensagem=f"Erro fatal: {e}")
 
-def executar_workflow_evolucao(loja_numero, gui_callback, debug_mode):
+def executar_workflow_evolucao(loja_numero, ano_alvo, mes_inicial, mes_final, gui_callback, debug_mode):
     driver = None
     try:
         gui_callback.atualizar_progresso(0, 100, "Verificando conexão com a internet...")
@@ -195,7 +194,7 @@ def executar_workflow_evolucao(loja_numero, gui_callback, debug_mode):
         step01_login_actions.login_e_navega_para_pai(driver, wait, gui_callback)
         
         if gui_callback.stop_requested: raise InterruptedError("Parada solicitada.")
-        step02_pai_evolution.executar_evolution_actions(driver, wait, cnpj_selecionado, gui_callback)
+        step02_pai_evolution.executar_evolution_actions(driver, wait, cnpj_selecionado, ano_alvo, mes_inicial, mes_final, gui_callback)
         
         if driver: driver.quit()
 
