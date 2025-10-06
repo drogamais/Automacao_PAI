@@ -61,10 +61,9 @@ def executar_workflow_completo(loja_numero, gui_callback, debug_mode):
         
         if not debug_mode:
             print("Iniciando em modo oculto (headless)...")
-            # --- ARGUMENTOS ESSENCIAIS PARA MODO OCULTO ---
             chrome_options.add_argument("--headless")
-            chrome_options.add_argument("--window-size=1920,1080") # Define um tamanho de tela virtual
-            chrome_options.add_argument("--disable-gpu") # Recomendado para Windows
+            chrome_options.add_argument("--window-size=1920,1080")
+            chrome_options.add_argument("--disable-gpu")
         else:
             print("Iniciando em modo de depuração (navegador visível com DevTools)...")
             chrome_options.add_argument("--auto-open-devtools-for-tabs")
@@ -127,6 +126,9 @@ def executar_workflow_evolucao(loja_numero, gui_callback, debug_mode):
         prefs = {
             "download.default_directory": pasta_downloads, "download.prompt_for_download": False,
             "download.directory_upgrade": True, "safebrowsing.enabled": True,
+            # --- LINHAS CORRIGIDAS/ADICIONADAS ---
+            "safebrowsing.disable_download_protection": True,
+            "profile.default_content_setting_values.automatic_downloads": 1
         }
         chrome_options.add_experimental_option("prefs", prefs)
         

@@ -1,0 +1,5 @@
+pandas
+mariadb
+webdriver-manager
+selenium
+numpy
