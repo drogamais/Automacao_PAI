@@ -16,6 +16,7 @@ from gui_app import AutomationGUI
 import step01_login_actions
 import step02_pai_actions
 import step02_pai_evolution
+import step03_pai_search
 
 # Importa todos os scripts de processamento
 import processar_financeiro
@@ -221,9 +222,44 @@ def executar_workflow_evolucao(loja_numero, ano_alvo, mes_inicial, mes_final, gu
         if not gui_callback.stop_requested:
             gui_callback.finalizar_automacao(sucesso=False, mensagem=f"Erro fatal na Evolução Mensal: {e}")
 
+# --- NOVA FUNÇÃO DE WORKFLOW PARA BUSCA ---
+def executar_workflow_busca(ano_alvo, gui_callback, debug_mode, results_callback):
+    driver = None
+    try:
+        gui_callback.atualizar_progresso(0, 100, "Verificando conexão...", is_search=True)
+        if not check_internet_connection():
+            raise ConnectionError("Sem conexão com a internet.")
+
+        gui_callback.atualizar_progresso(5, 100, "Iniciando navegador...", is_search=True)
+        driver = setup_driver(debug_mode)
+        wait = WebDriverWait(driver, 60)
+        
+        if gui_callback.stop_requested: raise InterruptedError("Parada solicitada.")
+        gui_callback.atualizar_progresso(10, 100, "Realizando login...", is_search=True)
+        step01_login_actions.login_e_navega_para_pai(driver, wait, gui_callback)
+        
+        if gui_callback.stop_requested: raise InterruptedError("Parada solicitada.")
+        lojas_encontradas = step03_pai_search.executar_busca_lojas(driver, wait, ano_alvo, gui_callback)
+        
+        # Envia os resultados de volta para a GUI
+        results_callback(lojas_encontradas)
+        
+        if not gui_callback.stop_requested:
+            gui_callback.finalizar_automacao(sucesso=True, is_search=True)
+
+    except InterruptedError as e:
+        print(f"Processo interrompido pelo usuário: {e}")
+        gui_callback.finalizar_automacao(sucesso=False, is_search=True)
+    except Exception as e:
+        print(f"\nOcorreu um erro fatal na busca: {e}")
+        if not gui_callback.stop_requested:
+            gui_callback.finalizar_automacao(sucesso=False, mensagem=f"Erro fatal: {e}", is_search=True)
+    finally:
+        if driver:
+            driver.quit()
 
 if __name__ == "__main__":
     root = tk.Tk()
     app = AutomationGUI(root)
-    app.set_automation_callbacks(executar_workflow_completo, executar_workflow_evolucao)
+    app.set_automation_callbacks(executar_workflow_completo, executar_workflow_evolucao, executar_workflow_busca)
     root.mainloop()
