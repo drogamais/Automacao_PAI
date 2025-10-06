@@ -8,6 +8,13 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
 
+def stoppable_sleep(duration, gui_callback):
+    """Uma função de espera que pode ser interrompida."""
+    for i in range(duration):
+        if gui_callback.stop_requested:
+            raise InterruptedError("Parada solicitada durante a espera.")
+        time.sleep(1)
+
 def carregar_credenciais():
     try:
         with open('credenciais.json', 'r') as f:
@@ -18,12 +25,14 @@ def carregar_credenciais():
     except KeyError:
         exit("Erro: O arquivo 'credenciais.json' deve conter as chaves 'usuario' e 'senha'.")
 
-def login_e_navega_para_pai(driver, wait):
+def login_e_navega_para_pai(driver, wait, gui_callback): # Adicionado gui_callback
     USUARIO, SENHA = carregar_credenciais()
     URL_LOGIN = "https://orion.febrafar.com.br/login"
 
     print("Iniciando o navegador e acessando a página de login...")
     driver.get(URL_LOGIN)
+    
+    if gui_callback.stop_requested: raise InterruptedError("Parada solicitada.")
 
     print("Realizando o login...")
     wait.until(EC.visibility_of_element_located((By.ID, "email"))).send_keys(USUARIO)
@@ -32,21 +41,22 @@ def login_e_navega_para_pai(driver, wait):
     wait.until(EC.url_changes(URL_LOGIN))
     print("\nLogin realizado com sucesso!")
 
-    # --- PAUSA DE ESTABILIZAÇÃO ADICIONADA ---
     print("Aguardando 3 segundos para o dashboard carregar completamente...")
-    time.sleep(3)
+    stoppable_sleep(3, gui_callback)
 
     print("Aguardando o cabeçalho da página (id='header') carregar...")
     wait.until(EC.visibility_of_element_located((By.ID, "header")))
     print("Cabeçalho encontrado.")
-    time.sleep(1) 
+    stoppable_sleep(1, gui_callback) 
+
+    if gui_callback.stop_requested: raise InterruptedError("Parada solicitada.")
 
     print("Procurando o botão de menu usando um seletor relacional...")
     seletor_menu = "//button[contains(@title, 'Gabriel')]/parent::div/preceding-sibling::div/button"
     botao_menu = wait.until(EC.element_to_be_clickable((By.XPATH, seletor_menu)))
     ActionChains(driver).move_to_element(botao_menu).click().perform()
     print("Clique no menu realizado com sucesso!")
-    time.sleep(1)
+    stoppable_sleep(1, gui_callback)
     
     print("Aguardando o menu de opções carregar e clicando em 'PAI'...")
     seletor_pai = "//button[.//h3[text()='PAI']]"
@@ -56,6 +66,8 @@ def login_e_navega_para_pai(driver, wait):
     janelas_antigas = set(driver.window_handles)
     
     item_pai.click()
+    
+    if gui_callback.stop_requested: raise InterruptedError("Parada solicitada.")
     
     print("Aguardando a nova aba do PAI ser aberta...")
     wait.until(EC.new_window_is_opened(janelas_antigas))
@@ -73,5 +85,5 @@ def login_e_navega_para_pai(driver, wait):
         raise Exception("Não foi possível encontrar a nova aba do aplicativo PAI.")
         
     print(f"Foco do Selenium mudado para a nova aba com título: '{driver.title}'")
-    time.sleep(2)
+    stoppable_sleep(2, gui_callback)
     print("\nNavegação para o PAI realizada com sucesso na nova aba!")

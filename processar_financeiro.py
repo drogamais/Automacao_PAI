@@ -13,7 +13,7 @@ DB_HOST = "10.48.12.20"
 DB_PORT = 3306
 DB_NAME = "dbDrogamais"
 TABLE_NAME = "bronze_pai_financeiro"
-PASTA_DOS_ARQUIVOS_EXCEL = r"C:\Users\altaneiro.analista01\Desktop\interface PAI\downloads"
+PASTA_DOS_ARQUIVOS_EXCEL = os.path.join(os.path.dirname(os.path.realpath(__file__)), "downloads")
 
 # --- REGRAS DE EXTRAÇÃO ---
 LINHAS_PARA_EXTRAIR = [

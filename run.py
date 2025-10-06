@@ -5,6 +5,7 @@ import time
 import tkinter as tk
 import mariadb
 import subprocess
+import socket
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -30,18 +31,28 @@ DB_HOST = "10.48.12.20"
 DB_PORT = 3306
 DB_NAME = "dbDrogamais"
 
-# --- NOVA FUNÇÃO PARA FECHAR O EXCEL ---
+def check_internet_connection(host="8.8.8.8", port=53, timeout=3):
+    """
+    Tenta se conectar a um servidor externo (DNS do Google) para
+    verificar se há uma conexão ativa com a internet.
+    """
+    try:
+        socket.setdefaulttimeout(timeout)
+        socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect((host, port))
+        return True
+    except socket.error as ex:
+        print(f"Verificação de internet falhou: {ex}")
+        return False
+
 def fechar_processos_excel():
     """Força o fechamento de todos os processos EXCEL.EXE em execução."""
     print("Verificando e tentando fechar processos do Excel abertos...")
     try:
-        # O comando taskkill /F /IM EXCEL.EXE força o fechamento de qualquer processo com o nome "EXCEL.EXE"
-        # stdout e stderr são redirecionados para DEVNULL para não poluir o console se o processo não for encontrado.
         subprocess.run(["taskkill", "/F", "/IM", "EXCEL.EXE"], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         print("Comando para fechar Excel executado. Isso garante que os arquivos temporários sejam liberados.")
     except Exception as e:
         print(f"Não foi possível forçar o fechamento do Excel. Erro: {e}")
-    time.sleep(2) # Pequena pausa para o sistema operacional liberar os arquivos
+    time.sleep(2)
 
 def limpar_pasta_downloads():
     """Apaga todos os arquivos na pasta de downloads para evitar duplicatas."""
@@ -110,8 +121,13 @@ def setup_driver(debug_mode):
 def executar_workflow_completo(loja_numero, gui_callback, debug_mode):
     driver = None
     try:
-        fechar_processos_excel() # <<-- FECHA O EXCEL PRIMEIRO
-        limpar_pasta_downloads() # <<-- DEPOIS LIMPA A PASTA
+        gui_callback.atualizar_progresso(0, 100, "Verificando conexão com a internet...")
+        if not check_internet_connection():
+            gui_callback.finalizar_automacao(sucesso=False, mensagem="Sem conexão com a internet.")
+            return
+
+        fechar_processos_excel()
+        limpar_pasta_downloads()
         gui_callback.atualizar_progresso(0, 100, f"Buscando CNPJ para a loja {loja_numero}...")
         cnpj_selecionado = buscar_cnpj_no_banco(loja_numero)
         if not cnpj_selecionado:
@@ -123,7 +139,8 @@ def executar_workflow_completo(loja_numero, gui_callback, debug_mode):
         
         if gui_callback.stop_requested: raise InterruptedError("Parada solicitada.")
         gui_callback.atualizar_progresso(0, 100, "Realizando login...")
-        step01_login_actions.login_e_navega_para_pai(driver, wait)
+        # --- LINHA CORRIGIDA ---
+        step01_login_actions.login_e_navega_para_pai(driver, wait, gui_callback)
         
         if gui_callback.stop_requested: raise InterruptedError("Parada solicitada.")
         step02_pai_actions.executar_acoes_pai(driver, wait, cnpj_selecionado, gui_callback)
@@ -156,8 +173,13 @@ def executar_workflow_completo(loja_numero, gui_callback, debug_mode):
 def executar_workflow_evolucao(loja_numero, gui_callback, debug_mode):
     driver = None
     try:
-        fechar_processos_excel() # <<-- FECHA O EXCEL PRIMEIRO
-        limpar_pasta_downloads() # <<-- DEPOIS LIMPA A PASTA
+        gui_callback.atualizar_progresso(0, 100, "Verificando conexão com a internet...")
+        if not check_internet_connection():
+            gui_callback.finalizar_automacao(sucesso=False, mensagem="Sem conexão com a internet.")
+            return
+            
+        fechar_processos_excel()
+        limpar_pasta_downloads()
         gui_callback.atualizar_progresso(0, 100, f"Buscando CNPJ para a loja {loja_numero}...")
         cnpj_selecionado = buscar_cnpj_no_banco(loja_numero)
         if not cnpj_selecionado:
@@ -169,7 +191,8 @@ def executar_workflow_evolucao(loja_numero, gui_callback, debug_mode):
         
         if gui_callback.stop_requested: raise InterruptedError("Parada solicitada.")
         gui_callback.atualizar_progresso(0, 100, "Realizando login...")
-        step01_login_actions.login_e_navega_para_pai(driver, wait)
+        # --- LINHA CORRIGIDA ---
+        step01_login_actions.login_e_navega_para_pai(driver, wait, gui_callback)
         
         if gui_callback.stop_requested: raise InterruptedError("Parada solicitada.")
         step02_pai_evolution.executar_evolution_actions(driver, wait, cnpj_selecionado, gui_callback)
