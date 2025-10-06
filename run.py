@@ -4,6 +4,7 @@ import os
 import time
 import tkinter as tk
 import mariadb
+import subprocess
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -29,6 +30,39 @@ DB_HOST = "10.48.12.20"
 DB_PORT = 3306
 DB_NAME = "dbDrogamais"
 
+# --- NOVA FUNÇÃO PARA FECHAR O EXCEL ---
+def fechar_processos_excel():
+    """Força o fechamento de todos os processos EXCEL.EXE em execução."""
+    print("Verificando e tentando fechar processos do Excel abertos...")
+    try:
+        # O comando taskkill /F /IM EXCEL.EXE força o fechamento de qualquer processo com o nome "EXCEL.EXE"
+        # stdout e stderr são redirecionados para DEVNULL para não poluir o console se o processo não for encontrado.
+        subprocess.run(["taskkill", "/F", "/IM", "EXCEL.EXE"], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        print("Comando para fechar Excel executado. Isso garante que os arquivos temporários sejam liberados.")
+    except Exception as e:
+        print(f"Não foi possível forçar o fechamento do Excel. Erro: {e}")
+    time.sleep(2) # Pequena pausa para o sistema operacional liberar os arquivos
+
+def limpar_pasta_downloads():
+    """Apaga todos os arquivos na pasta de downloads para evitar duplicatas."""
+    print("Limpando a pasta de downloads...")
+    caminho_script = os.path.dirname(os.path.realpath(__file__))
+    pasta_downloads = os.path.join(caminho_script, "downloads")
+    if not os.path.exists(pasta_downloads):
+        os.makedirs(pasta_downloads)
+        print("Pasta de downloads criada.")
+        return
+
+    for filename in os.listdir(pasta_downloads):
+        file_path = os.path.join(pasta_downloads, filename)
+        try:
+            if os.path.isfile(file_path) or os.path.islink(file_path):
+                os.unlink(file_path)
+        except Exception as e:
+            print(f'Falha ao deletar {file_path}. Razão: {e}')
+    print("Pasta de downloads limpa.")
+
+
 def buscar_cnpj_no_banco(loja_numero):
     conn = None
     try:
@@ -44,9 +78,7 @@ def buscar_cnpj_no_banco(loja_numero):
 def setup_driver(debug_mode):
     caminho_script = os.path.dirname(os.path.realpath(__file__))
     pasta_downloads = os.path.join(caminho_script, "downloads")
-    if not os.path.exists(pasta_downloads):
-        os.makedirs(pasta_downloads)
-
+    
     chrome_options = Options()
     prefs = {
         "download.default_directory": pasta_downloads,
@@ -78,6 +110,8 @@ def setup_driver(debug_mode):
 def executar_workflow_completo(loja_numero, gui_callback, debug_mode):
     driver = None
     try:
+        fechar_processos_excel() # <<-- FECHA O EXCEL PRIMEIRO
+        limpar_pasta_downloads() # <<-- DEPOIS LIMPA A PASTA
         gui_callback.atualizar_progresso(0, 100, f"Buscando CNPJ para a loja {loja_numero}...")
         cnpj_selecionado = buscar_cnpj_no_banco(loja_numero)
         if not cnpj_selecionado:
@@ -96,7 +130,6 @@ def executar_workflow_completo(loja_numero, gui_callback, debug_mode):
         
         if driver: driver.quit()
 
-        # --- SEÇÃO DE PROCESSAMENTO PARA AUTOMAÇÃO COMPLETA ---
         if gui_callback.stop_requested: raise InterruptedError("Parada solicitada.")
         gui_callback.atualizar_progresso(0, 100, "Processando planilhas de Financeiro...")
         processar_financeiro.main()
@@ -123,6 +156,8 @@ def executar_workflow_completo(loja_numero, gui_callback, debug_mode):
 def executar_workflow_evolucao(loja_numero, gui_callback, debug_mode):
     driver = None
     try:
+        fechar_processos_excel() # <<-- FECHA O EXCEL PRIMEIRO
+        limpar_pasta_downloads() # <<-- DEPOIS LIMPA A PASTA
         gui_callback.atualizar_progresso(0, 100, f"Buscando CNPJ para a loja {loja_numero}...")
         cnpj_selecionado = buscar_cnpj_no_banco(loja_numero)
         if not cnpj_selecionado:
@@ -141,7 +176,6 @@ def executar_workflow_evolucao(loja_numero, gui_callback, debug_mode):
         
         if driver: driver.quit()
 
-        # --- SEÇÃO DE PROCESSAMENTO PARA EVOLUÇÃO MENSAL ---
         if gui_callback.stop_requested: raise InterruptedError("Parada solicitada.")
         gui_callback.atualizar_progresso(0, 100, "Processando Evolução Financeira...")
         processar_evolucao_financeiro.main()

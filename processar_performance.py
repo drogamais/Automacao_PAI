@@ -17,7 +17,7 @@ PASTA_DOS_ARQUIVOS_EXCEL = r"C:\Users\altaneiro.analista01\Desktop\interface PAI
 
 # --- REGRAS DE EXTRAÇÃO PARA PERFORMANCE ---
 LINHAS_PARA_EXTRAIR = [
-    4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 16, 17, 18, 20, 22, 24, 26, 28, 30,
+    2, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 16, 17, 18, 20, 22, 24, 26, 28, 30,
     32, 33, 34, 35, 37, 39, 40, 42, 43, 45, 46, 48, 50, 51, 52, 53, 54, 55, 56, 57
 ]
 
@@ -108,7 +108,7 @@ def main():
         print(f"{len(lojas_map)} lojas válidas carregadas com sucesso.")
 
         todos_os_dados = []
-        arquivos_excel = [f for f in os.listdir(PASTA_DOS_ARQUIVOS_EXCEL) if f.endswith('.xlsx')]
+        arquivos_excel = [f for f in os.listdir(PASTA_DOS_ARQUIVOS_EXCEL) if f.endswith('.xlsx') and "performance" in f.lower() and not f.startswith('~$')]
         if not arquivos_excel:
             print(f"Nenhum arquivo Excel (.xlsx) encontrado na pasta: '{PASTA_DOS_ARQUIVOS_EXCEL}'")
         else:

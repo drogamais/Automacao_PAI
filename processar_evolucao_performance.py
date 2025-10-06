@@ -17,10 +17,10 @@ PASTA_DOS_ARQUIVOS_EXCEL = r"C:\Users\altaneiro.analista01\Desktop\gitclones\Aut
 
 # --- REGRAS DE EXTRAÇÃO PARA PERFORMANCE ---
 LINHAS_PARA_EXTRAIR = [
-    4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 16, 17, 18, 20, 22, 24, 26, 28, 30,
-    32, 33, 34, 35, 37, 39, 40, 42, 43, 45, 46, 48, 50, 51, 52, 53, 54, 55, 56, 57
+    2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+    31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44
 ]
-COLUNA_INDICADORES = 2 # Corresponde à coluna 'C'
+COLUNA_INDICADORES = 1 # Corresponde à coluna 'B'
 
 # --- FUNÇÃO AUXILIAR ---
 def limpar_valor(valor_str):
@@ -48,17 +48,18 @@ def extrair_dados_do_excel(caminho_arquivo, lojas_map):
     dados_extraidos = []
     total_linhas_df = df_excel.shape[0]
 
-    # Itera através das colunas de dados mensais (começando da coluna D, índice 3)
-    for col_idx in range(3, df_excel.shape[1]):
-        header_value = df_excel.iat[0, col_idx]
+    for col_idx in range(2, df_excel.shape[1]):
+        # --- LINHA CORRIGIDA ---
+        # Adicionado .strip() para remover espaços em branco antes ou depois da data
+        header_value = str(df_excel.iat[0, col_idx]).strip()
         
-        if "Média no Período" in str(header_value):
+        if "Média no Período" in header_value:
             break
         
         try:
             data_ref = datetime.strptime(f"01/{header_value}", "%d/%m/%Y").date()
         except (ValueError, TypeError):
-            print(f"AVISO: Cabeçalho de data inválido '{header_value}' na coluna {col_idx}. Pulando coluna.")
+            # Esta linha agora vai pular colunas vazias ou mal formatadas, mas deve pegar a primeira data corretamente
             continue
 
         for num_linha in LINHAS_PARA_EXTRAIR:
@@ -108,7 +109,7 @@ def main():
 
         arquivos_excel = [
             f for f in os.listdir(PASTA_DOS_ARQUIVOS_EXCEL) 
-            if f.endswith('.xlsx') and 'evolução' in f.lower() and 'performance' in f.lower()
+            if f.endswith('.xlsx') and 'evolução' in f.lower() and 'performance' in f.lower() and not f.startswith('~$')
         ]
 
         if not arquivos_excel:
@@ -128,7 +129,6 @@ def main():
             df_final_completo = pd.concat(todos_os_dados, ignore_index=True)
             df_final_completo = df_final_completo.replace({np.nan: None})
 
-            # Adiciona colunas nulas para as métricas que não existem no arquivo de evolução
             df_final_completo['metrica_media_loja_6m'] = None
             df_final_completo['metrica_media_faixa_faturamento_6m'] = None
             df_final_completo['metrica_media_febrafar_6m'] = None

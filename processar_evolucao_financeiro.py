@@ -17,9 +17,9 @@ PASTA_DOS_ARQUIVOS_EXCEL = r"C:\Users\altaneiro.analista01\Desktop\gitclones\Aut
 
 # --- REGRAS DE EXTRAÇÃO ---
 LINHAS_PARA_EXTRAIR = [
-    3, 8, 9, 12, 13, 14, 15, 18, 19, 20, 21, 22, 23, 26, 29, 30, 31, 32, 33, 34, 35,
-    38, 39, 40, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 55, 56, 59, 60, 61,
-    66, 67, 68, 69, 70, 71
+    3, 4, 6, 7, 9, 10, 11, 12, 14, 15, 16, 17, 18, 19, 21, 23, 24, 25, 26, 27, 28,
+    29, 31, 32, 33, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 46, 47, 49, 50,
+    51, 52, 54, 55, 56, 57, 58, 59
 ]
 LINHAS_POSITIVAS = {3, 59, 60, 61}
 COLUNA_INDICADORES = 2  # Corresponde à coluna 'C' (índice 2)
@@ -121,7 +121,7 @@ def main():
         # Agora ignora explicitamente qualquer arquivo que contenha "performance" no nome
         arquivos_excel = [
             f for f in os.listdir(PASTA_DOS_ARQUIVOS_EXCEL) 
-            if f.endswith('.xlsx') and 'evolução' in f.lower() and 'performance' not in f.lower()
+            if f.endswith('.xlsx') and 'evolução' in f.lower() and not f.startswith('~$') and 'performance' not in f.lower()
         ]
         
         if not arquivos_excel:

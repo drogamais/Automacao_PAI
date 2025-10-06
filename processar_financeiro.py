@@ -134,7 +134,7 @@ def main():
         print(f"{len(lojas_map)} lojas válidas carregadas com sucesso.")
 
         todos_os_dados = []
-        arquivos_excel = [f for f in os.listdir(PASTA_DOS_ARQUIVOS_EXCEL) if f.endswith('.xlsx')]
+        arquivos_excel = [f for f in os.listdir(PASTA_DOS_ARQUIVOS_EXCEL) if f.endswith('.xlsx') and "financeiro" in f.lower() and not f.startswith('~$')]
         if not arquivos_excel:
             print(f"Nenhum arquivo Excel (.xlsx) encontrado na pasta: '{PASTA_DOS_ARQUIVOS_EXCEL}'")
         else:
