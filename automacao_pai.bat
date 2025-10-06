@@ -18,5 +18,5 @@ REM Executa o script principal do Python
 python run.py
 
 echo.
-echo A aplicação foi fechada.
+echo A aplicacao foi fechada.
 pause
