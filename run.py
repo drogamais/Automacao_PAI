@@ -13,6 +13,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from gui_app import AutomationGUI
 import step01_login_actions
 import step02_pai_actions
+import step02_pai_evolution
 import processar_financeiro
 import processar_performance
 
@@ -108,8 +109,68 @@ def executar_workflow_completo(loja_numero, gui_callback, debug_mode):
         if not gui_callback.stop_requested:
             gui_callback.finalizar_automacao(sucesso=False, mensagem=f"Erro fatal: {e}")
 
+def executar_workflow_evolucao(loja_numero, gui_callback, debug_mode):
+    try:
+        gui_callback.atualizar_progresso(0, 100, f"Buscando CNPJ para a loja {loja_numero}...")
+        cnpj_selecionado = buscar_cnpj_no_banco(loja_numero)
+        if not cnpj_selecionado:
+            raise ValueError(f"Loja {loja_numero} não encontrada.")
+        
+        gui_callback.atualizar_progresso(0, 100, f"CNPJ {cnpj_selecionado} encontrado. Iniciando navegador...")
+
+        driver = None
+        caminho_script = os.path.dirname(os.path.realpath(__file__))
+        pasta_downloads = os.path.join(caminho_script, "downloads")
+        if not os.path.exists(pasta_downloads): os.makedirs(pasta_downloads)
+
+        chrome_options = Options()
+        prefs = {
+            "download.default_directory": pasta_downloads, "download.prompt_for_download": False,
+            "download.directory_upgrade": True, "safebrowsing.enabled": True,
+        }
+        chrome_options.add_experimental_option("prefs", prefs)
+        
+        if not debug_mode:
+            chrome_options.add_argument("--headless")
+            chrome_options.add_argument("--window-size=1920,1080")
+            chrome_options.add_argument("--disable-gpu")
+        else:
+            chrome_options.add_argument("--auto-open-devtools-for-tabs")
+
+        service = Service(ChromeDriverManager().install())
+        driver = webdriver.Chrome(service=service, options=chrome_options)
+        
+        if debug_mode:
+            driver.maximize_window()
+        
+        wait = WebDriverWait(driver, 60)
+        
+        if gui_callback.stop_requested: raise InterruptedError("Parada solicitada.")
+        gui_callback.atualizar_progresso(0, 100, "Realizando login...")
+        step01_login_actions.login_e_navega_para_pai(driver, wait)
+        
+        if gui_callback.stop_requested: raise InterruptedError("Parada solicitada.")
+        step02_pai_evolution.executar_evolution_actions(driver, wait, cnpj_selecionado, gui_callback)
+        
+        if driver: driver.quit()
+        
+        if not gui_callback.stop_requested:
+            gui_callback.finalizar_automacao(sucesso=True)
+
+    except InterruptedError as e:
+        print(f"Processo interrompido pelo usuário: {e}")
+        if driver: driver.quit()
+        gui_callback.finalizar_automacao()
+    except Exception as e:
+        print(f"\nOcorreu um erro fatal na execução: {e}")
+        if driver: 
+            driver.save_screenshot("erro_screenshot_fatal.png")
+            driver.quit()
+        if not gui_callback.stop_requested:
+            gui_callback.finalizar_automacao(sucesso=False, mensagem=f"Erro fatal: {e}")
+
 if __name__ == "__main__":
     root = tk.Tk()
     app = AutomationGUI(root)
-    app.set_automation_callback(executar_workflow_completo)
+    app.set_automation_callbacks(executar_workflow_completo, executar_workflow_evolucao)
     root.mainloop()

@@ -8,7 +8,7 @@ class AutomationGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("Automação de Relatórios PAI")
-        self.root.geometry("400x280") # Aumentei a altura para o novo campo
+        self.root.geometry("500x280") # Aumentei a largura para o novo botão
         
         self.stop_requested = False
         self.automation_thread = None
@@ -33,8 +33,11 @@ class AutomationGUI:
         button_frame = ttk.Frame(self.main_frame)
         button_frame.pack(pady=10)
 
-        self.start_button = ttk.Button(button_frame, text="Iniciar Automação", command=self.iniciar_thread_automacao)
+        self.start_button = ttk.Button(button_frame, text="Iniciar Automação Completa", command=self.iniciar_thread_automacao)
         self.start_button.pack(side=tk.LEFT, padx=5)
+
+        self.evolution_button = ttk.Button(button_frame, text="Evolução Mensal", command=self.iniciar_thread_evolucao)
+        self.evolution_button.pack(side=tk.LEFT, padx=5)
 
         self.stop_button = ttk.Button(button_frame, text="Parar", command=self.solicitar_parada, state=tk.DISABLED)
         self.stop_button.pack(side=tk.LEFT, padx=5)
@@ -56,11 +59,29 @@ class AutomationGUI:
         
         self.stop_requested = False
         self.start_button.config(state=tk.DISABLED)
+        self.evolution_button.config(state=tk.DISABLED)
         self.stop_button.config(state=tk.NORMAL)
         self.progress_bar['value'] = 0
         
         # Passa o 'debug_mode' como argumento para a thread
         self.automation_thread = threading.Thread(target=self.run_automation_callback, args=(loja_numero, self, debug_mode))
+        self.automation_thread.start()
+
+    def iniciar_thread_evolucao(self):
+        loja_numero = self.loja_numero_entry.get()
+        if not loja_numero.isdigit():
+            messagebox.showerror("Entrada Inválida", "Por favor, digite um número de loja válido.")
+            return
+
+        debug_mode = self.debug_mode_var.get()
+
+        self.stop_requested = False
+        self.start_button.config(state=tk.DISABLED)
+        self.evolution_button.config(state=tk.DISABLED)
+        self.stop_button.config(state=tk.NORMAL)
+        self.progress_bar['value'] = 0
+
+        self.automation_thread = threading.Thread(target=self.run_evolution_callback, args=(loja_numero, self, debug_mode))
         self.automation_thread.start()
 
     def solicitar_parada(self):
@@ -81,6 +102,7 @@ class AutomationGUI:
     def finalizar_automacao(self, sucesso=True, mensagem=""):
         # (Esta função continua igual)
         self.start_button.config(state=tk.NORMAL)
+        self.evolution_button.config(state=tk.NORMAL)
         self.stop_button.config(state=tk.DISABLED)
         
         if self.stop_requested:
@@ -94,6 +116,6 @@ class AutomationGUI:
             self.status_label.config(text=f"Erro: {mensagem}")
             messagebox.showerror("Erro", mensagem)
 
-    def set_automation_callback(self, callback):
-        # (Esta função continua igual)
-        self.run_automation_callback = callback
+    def set_automation_callbacks(self, full_callback, evolution_callback):
+        self.run_automation_callback = full_callback
+        self.run_evolution_callback = evolution_callback
