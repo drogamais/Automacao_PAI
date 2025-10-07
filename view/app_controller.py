@@ -1,4 +1,4 @@
-# Arquivo: view/app_controller.py
+# Ficheiro: view/app_controller.py
 import tkinter as tk
 from tkinter import messagebox
 import threading
@@ -16,6 +16,9 @@ class AppController:
         self.automation_thread = None
         self.search_window = None
 
+        # --- NOVO: Variável de estado para operações em lote ---
+        self.is_batch_running = False
+
         self.main_view = MainView(root, self)
         self.main_view.pack(fill=tk.BOTH, expand=True)
 
@@ -23,7 +26,6 @@ class AppController:
         self.stop_requested = False
         self._set_buttons_state(tk.DISABLED)
         
-        # O último argumento para os workflows é sempre o modo de depuração
         all_args = args + (self.main_view.debug_mode_var.get(),)
         
         self.automation_thread = threading.Thread(target=self._automation_wrapper, args=(target_func, all_args))
@@ -69,6 +71,9 @@ class AppController:
         self._start_automation_thread(automation.executar_workflow_busca, ano, self, self.search_window.update_results)
 
     def start_batch_automation(self):
+        # --- NOVO: Ativa o estado de lote ---
+        self.is_batch_running = True
+        
         ano = self.main_view.ano_entry.get()
         mes_ini = self.main_view.mes_inicial_combo.get()
         mes_fim = self.main_view.mes_final_combo.get()
@@ -81,6 +86,7 @@ class AppController:
         
         if not lojas_selecionadas:
             messagebox.showwarning("Nenhuma Loja", "Nenhuma loja foi selecionada para a automação.", parent=self.search_window)
+            self.is_batch_running = False # Reseta o estado se não houver lojas
             return
 
         self._start_automation_thread(automation.executar_workflow_em_lote, lojas_selecionadas, ano, mes_ini, mes_fim, self)
@@ -100,12 +106,18 @@ class AppController:
     def atualizar_progresso(self, valor, maximo, texto_status, is_search=False):
         if self.stop_requested: return
         
-        target_label = self.main_view.status_label
-        target_bar = self.main_view.progress_bar
-
-        if is_search and self.search_window and self.search_window.winfo_exists():
+        # --- LÓGICA ATUALIZADA ---
+        # Se uma operação em lote estiver a decorrer, força a atualização na janela principal.
+        if self.is_batch_running:
+            target_label = self.main_view.status_label
+            target_bar = self.main_view.progress_bar
+        # Caso contrário, usa a lógica original.
+        elif is_search and self.search_window and self.search_window.winfo_exists():
             target_label = self.search_window.search_status_label
             target_bar = self.search_window.search_progress_bar
+        else:
+            target_label = self.main_view.status_label
+            target_bar = self.main_view.progress_bar
         
         target_label.config(text=texto_status)
         target_bar['maximum'] = maximo
@@ -113,6 +125,8 @@ class AppController:
         self.root.update_idletasks()
 
     def finalizar_automacao(self, sucesso=True, mensagem=""):
+        # --- NOVO: Reseta o estado de lote ao finalizar ---
+        self.is_batch_running = False
         self._set_buttons_state(tk.NORMAL)
         if sucesso:
             if mensagem: messagebox.showinfo("Sucesso", mensagem)
