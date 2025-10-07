@@ -10,13 +10,12 @@ class AppController:
     def __init__(self, root):
         self.root = root
         self.root.title("Automação de Relatórios PAI")
-        self.root.geometry("500x380")
+        self.root.geometry("500x450")
         
         self.stop_requested = False
         self.automation_thread = None
         self.search_window = None
 
-        # --- NOVO: Variável de estado para operações em lote ---
         self.is_batch_running = False
 
         self.main_view = MainView(root, self)
@@ -71,7 +70,6 @@ class AppController:
         self._start_automation_thread(automation.executar_workflow_busca, ano, self, self.search_window.update_results)
 
     def start_batch_automation(self):
-        # --- NOVO: Ativa o estado de lote ---
         self.is_batch_running = True
         
         ano = self.main_view.ano_entry.get()
@@ -81,12 +79,15 @@ class AppController:
         lojas_selecionadas = []
         if self.search_window:
             for var, chk, info in self.search_window.check_vars:
-                if var.get():
+                # Apenas adiciona lojas que estão marcadas E não foram concluídas (não estão desabilitadas)
+                if var.get() and chk.cget("state") != tk.DISABLED:
                     lojas_selecionadas.append((chk, info))
         
         if not lojas_selecionadas:
-            messagebox.showwarning("Nenhuma Loja", "Nenhuma loja foi selecionada para a automação.", parent=self.search_window)
-            self.is_batch_running = False # Reseta o estado se não houver lojas
+            messagebox.showwarning("Nenhuma Loja", "Nenhuma loja nova foi selecionada para a automação.", parent=self.search_window)
+            self.is_batch_running = False
+            # Reativa os botões se nenhuma loja for selecionada, para permitir nova interação
+            self._set_buttons_state(tk.NORMAL)
             return
 
         self._start_automation_thread(automation.executar_workflow_em_lote, lojas_selecionadas, ano, mes_ini, mes_fim, self)
@@ -103,16 +104,12 @@ class AppController:
             return
         self.search_window = SearchView(self.root, self)
 
-    # --- FUNÇÃO MODIFICADA ---
     def atualizar_progresso(self, valor, maximo, texto_status, is_search=False):
         if self.stop_requested:
             return
-        # Agenda a atualização da GUI para ser executada na thread principal
         self.root.after(0, self._do_update_progresso, valor, maximo, texto_status, is_search)
 
-    # --- NOVA FUNÇÃO AUXILIAR ---
     def _do_update_progresso(self, valor, maximo, texto_status, is_search):
-        # Esta função é executada pela thread principal e pode atualizar a GUI com segurança
         if self.is_batch_running:
             target_label = self.main_view.status_label
             target_bar = self.main_view.progress_bar
@@ -126,11 +123,8 @@ class AppController:
         target_label.config(text=texto_status)
         target_bar['maximum'] = maximo
         target_bar['value'] = valor
-        # O self.root.update_idletasks() não é mais necessário aqui,
-        # pois o loop principal do Tkinter cuidará da atualização.
 
     def finalizar_automacao(self, sucesso=True, mensagem=""):
-        # --- NOVO: Reseta o estado de lote ao finalizar ---
         self.is_batch_running = False
         self._set_buttons_state(tk.NORMAL)
         if sucesso:
@@ -148,8 +142,13 @@ class AppController:
         if self.search_window and self.search_window.winfo_exists():
             self.search_window.search_button.config(state=state)
             self.search_window.search_stop_button.config(state=stop_state)
+            self.search_window.batch_button.config(state=state)
 
     def marcar_loja_como_concluida(self, chk_widget):
         if chk_widget and chk_widget.winfo_exists():
+            for var, chk, info in self.search_window.check_vars:
+                if chk is chk_widget:
+                    var.set(False)
+                    break
             chk_widget.config(text=chk_widget.cget("text") + " - Concluído!", state=tk.DISABLED)
             self.root.update_idletasks()

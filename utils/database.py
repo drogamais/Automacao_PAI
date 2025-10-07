@@ -33,3 +33,20 @@ def buscar_lojas_por_cnpjs(cnpjs):
         return []
     finally:
         if conn: conn.close()
+
+        # --- NOVA FUNÇÃO ---
+def carregar_mapa_lojas():
+    """Carrega o mapa de número da loja para nome fantasia a partir do banco."""
+    conn = None
+    try:
+        conn = mariadb.connect(**DB_CONFIG)
+        cursor = conn.cursor()
+        cursor.execute("SELECT loja_numero, fantasia FROM bronze_lojas")
+        lojas_map = {int(numero): nome for numero, nome in cursor.fetchall() if numero is not None}
+        return lojas_map
+    except mariadb.Error as e:
+        print(f"Erro ao carregar mapa de lojas: {e}")
+        return {}
+    finally:
+        if conn:
+            conn.close()

@@ -13,7 +13,6 @@ class SearchView(tk.Toplevel):
         self.title("Buscar Lojas com Lançamentos")
         self.geometry("500x550")
 
-        # -- Define o ícone da janela de busca --
         self.iconbitmap(resource_path("assets/icone.ico"))
 
         self.check_vars = []
@@ -64,8 +63,8 @@ class SearchView(tk.Toplevel):
         canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-        batch_button = ttkb.Button(main_frame, text="Puxar Lançamentos Selecionados", command=self.controller.start_batch_automation, bootstyle="success")
-        batch_button.pack(pady=(10,0), fill=tk.X)
+        self.batch_button = ttkb.Button(main_frame, text="Puxar Lançamentos Selecionados", command=self.controller.start_batch_automation, bootstyle="success")
+        self.batch_button.pack(pady=(10,0), fill=tk.X)
 
     def update_results(self, lojas):
         for widget in self.scrollable_frame.winfo_children():
@@ -83,8 +82,9 @@ class SearchView(tk.Toplevel):
             ttkb.Label(self.scrollable_frame, text="Nenhuma loja com lançamentos encontrada.").pack(padx=5, pady=5)
 
     def select_all(self):
-        for var, _, _ in self.check_vars:
-            var.set(True)
+        for var, chk, _ in self.check_vars:
+            if chk.cget("state") != tk.DISABLED:
+                var.set(True)
             
     def clear_all(self):
         for var, _, _ in self.check_vars:

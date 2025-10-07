@@ -4,7 +4,6 @@ import sys
 from selenium.webdriver.support.ui import WebDriverWait
 
 from scraping import login, relatorios, evolucao, busca
-# Os imports de processing não são mais necessários aqui para o lote
 from processing import evolucao_financeiro, evolucao_performance
 
 from utils import database, system, webdriver
@@ -13,7 +12,6 @@ from utils.config import DB_CONFIG
 # --- WORKFLOWS ---
 
 def executar_workflow_completo(loja_numero, ano_alvo, mes_inicial, mes_final, gui_callback, debug_mode):
-    # Esta função permanece como está, pois é para execução única e gerencia seu próprio ciclo de vida.
     driver = None
     conn = None
     try:
@@ -39,7 +37,6 @@ def executar_workflow_completo(loja_numero, ano_alvo, mes_inicial, mes_final, gu
         login.login_e_navega_para_pai(driver, wait, gui_callback)
         
         if gui_callback.stop_requested: raise InterruptedError("Parada solicitada.")
-        # Passa a conexão porque este workflow é de curta duração
         relatorios.executar_acoes_pai(driver, wait, cnpj_selecionado, ano_alvo, mes_inicial, mes_final, gui_callback, lojas_map, conn)
         
     except Exception as e:
@@ -52,7 +49,6 @@ def executar_workflow_completo(loja_numero, ano_alvo, mes_inicial, mes_final, gu
 
 
 def executar_workflow_evolucao(loja_numero, ano_alvo, mes_inicial, mes_final, gui_callback, debug_mode):
-    # Esta função também se beneficia da nova lógica nos scripts de processamento
     driver = None
     try:
         system.fechar_processos_excel()
@@ -68,15 +64,15 @@ def executar_workflow_evolucao(loja_numero, ano_alvo, mes_inicial, mes_final, gu
         login.login_e_navega_para_pai(driver, wait, gui_callback)
         evolucao.executar_evolution_actions(driver, wait, cnpj_selecionado, ano_alvo, mes_inicial, mes_final, gui_callback)
         
-        if driver: driver.quit() # Fecha o navegador antes de processar
+        if driver: driver.quit()
 
         if gui_callback.stop_requested: raise InterruptedError("Parada solicitada.")
         gui_callback.atualizar_progresso(0, 100, "Processando Evolução Financeira...")
-        evolucao_financeiro.main() # A função main gerencia sua própria conexão
+        evolucao_financeiro.main()
 
         if gui_callback.stop_requested: raise InterruptedError("Parada solicitada.")
         gui_callback.atualizar_progresso(50, 100, "Processando Evolução de Performance...")
-        evolucao_performance.main() # A função main gerencia sua própria conexão
+        evolucao_performance.main()
         
     finally:
         if driver:
@@ -84,7 +80,6 @@ def executar_workflow_evolucao(loja_numero, ano_alvo, mes_inicial, mes_final, gu
 
 
 def executar_workflow_busca(ano_alvo, gui_callback, results_callback, debug_mode):
-    # Esta função não interage com o banco de inserção, então permanece a mesma.
     driver = None
     try:
         gui_callback.atualizar_progresso(0, 100, "Verificando conexão...", is_search=True)
@@ -123,12 +118,13 @@ def executar_workflow_busca(ano_alvo, gui_callback, results_callback, debug_mode
         if driver:
             driver.quit()
 
-# --- FUNÇÃO PRINCIPAL MODIFICADA ---
+# --- FUNÇÃO PRINCIPAL CORRIGIDA ---
 def executar_workflow_em_lote(lojas_selecionadas, ano_alvo, mes_inicial, mes_final, gui_callback, debug_mode):
     total_lojas = len(lojas_selecionadas)
     gui_callback.atualizar_progresso(0, total_lojas, f"Iniciando automação em lote para {total_lojas} lojas.")
     
     driver = None
+    conn = None  # Inicializa a conexão como Nula
     try:
         # Abre o navegador e faz login apenas uma vez
         gui_callback.atualizar_progresso(0, total_lojas, "Iniciando navegador e fazendo login (uma vez)...")
@@ -137,10 +133,12 @@ def executar_workflow_em_lote(lojas_selecionadas, ano_alvo, mes_inicial, mes_fin
         login.login_e_navega_para_pai(driver, wait, gui_callback)
 
         # Carrega o mapa de lojas uma vez para reutilizar
-        # (Conexão rápida, não tem problema de timeout aqui)
         lojas_map = database.carregar_mapa_lojas() 
 
-        # Itera sobre as lojas, reutilizando o navegador
+        # Estabelece a conexão com o banco de dados uma vez para todo o lote
+        conn = mariadb.connect(**DB_CONFIG)
+
+        # Itera sobre as lojas, reutilizando o navegador e a conexão
         for i, (chk_widget, loja_info) in enumerate(lojas_selecionadas):
             if gui_callback.stop_requested:
                 raise InterruptedError("Processo em lote interrompido.")
@@ -151,9 +149,8 @@ def executar_workflow_em_lote(lojas_selecionadas, ano_alvo, mes_inicial, mes_fin
             gui_callback.atualizar_progresso(i, total_lojas, f"Processando {i+1}/{total_lojas}: {loja_numero}")
             
             try:
-                # Chama a função de scraping SEM a conexão do banco
-                # A própria função de processamento cuidará disso
-                relatorios.executar_acoes_pai(driver, wait, cnpj, ano_alvo, mes_inicial, mes_final, gui_callback, lojas_map)
+                # Chama a função de scraping COM a conexão do banco
+                relatorios.executar_acoes_pai(driver, wait, cnpj, ano_alvo, mes_inicial, mes_final, gui_callback, lojas_map, conn)
                 gui_callback.marcar_loja_como_concluida(chk_widget)
             except Exception as e:
                 print(f"Erro ao processar a loja {loja_numero}: {e}. Continuando para a próxima...")
@@ -167,6 +164,10 @@ def executar_workflow_em_lote(lojas_selecionadas, ano_alvo, mes_inicial, mes_fin
     finally:
         if driver:
             driver.quit()
+        # Garante que a conexão seja fechada ao final do processo
+        if conn and conn.open:
+            conn.close()
+            print("Conexão com o banco de dados (lote) fechada.")
 
     if not gui_callback.stop_requested:
         gui_callback.atualizar_progresso(total_lojas, total_lojas, "Automação em lote finalizada.")
