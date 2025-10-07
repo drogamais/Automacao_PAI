@@ -1,15 +1,9 @@
 # Arquivo: controller/automation.py
 from selenium.webdriver.support.ui import WebDriverWait
 
-# Importa as etapas e os processadores
-import step01_login_actions
-import step02_pai_actions
-import step02_pai_evolution
-import step03_pai_search
-import processar_financeiro
-import processar_performance
-import processar_evolucao_financeiro
-import processar_evolucao_performance
+# Importa as tarefas de scraping e processamento dos novos pacotes
+from scraping import login, relatorios, evolucao, busca
+from processing import financeiro, performance, evolucao_financeiro, evolucao_performance
 
 # Importa os utilitários
 from utils import database, system, webdriver
@@ -30,18 +24,18 @@ def executar_workflow_completo(loja_numero, ano_alvo, mes_inicial, mes_final, gu
         
         if gui_callback.stop_requested: raise InterruptedError("Parada solicitada.")
         gui_callback.atualizar_progresso(0, 100, "Realizando login...")
-        step01_login_actions.login_e_navega_para_pai(driver, wait, gui_callback)
+        login.login_e_navega_para_pai(driver, wait, gui_callback)
         
         if gui_callback.stop_requested: raise InterruptedError("Parada solicitada.")
-        step02_pai_actions.executar_acoes_pai(driver, wait, cnpj_selecionado, ano_alvo, mes_inicial, mes_final, gui_callback)
+        relatorios.executar_acoes_pai(driver, wait, cnpj_selecionado, ano_alvo, mes_inicial, mes_final, gui_callback)
         
         if driver: driver.quit()
         driver = None
 
         if gui_callback.stop_requested: raise InterruptedError("Parada solicitada.")
         gui_callback.atualizar_progresso(50, 100, "Processando planilhas...")
-        processar_financeiro.main()
-        processar_performance.main()
+        financeiro.main()
+        performance.main()
         
     finally:
         if driver:
@@ -67,26 +61,25 @@ def executar_workflow_evolucao(loja_numero, ano_alvo, mes_inicial, mes_final, gu
         
         if gui_callback.stop_requested: raise InterruptedError("Parada solicitada.")
         gui_callback.atualizar_progresso(0, 100, "Realizando login...")
-        step01_login_actions.login_e_navega_para_pai(driver, wait, gui_callback)
+        login.login_e_navega_para_pai(driver, wait, gui_callback)
         
         if gui_callback.stop_requested: raise InterruptedError("Parada solicitada.")
-        step02_pai_evolution.executar_evolution_actions(driver, wait, cnpj_selecionado, ano_alvo, mes_inicial, mes_final, gui_callback)
+        evolucao.executar_evolution_actions(driver, wait, cnpj_selecionado, ano_alvo, mes_inicial, mes_final, gui_callback)
         
         if driver: driver.quit()
 
         if gui_callback.stop_requested: raise InterruptedError("Parada solicitada.")
         gui_callback.atualizar_progresso(0, 100, "Processando Evolução Financeira...")
-        processar_evolucao_financeiro.main()
+        evolucao_financeiro.main()
 
         if gui_callback.stop_requested: raise InterruptedError("Parada solicitada.")
         gui_callback.atualizar_progresso(50, 100, "Processando Evolução de Performance...")
-        processar_evolucao_performance.main()
+        evolucao_performance.main()
         
     finally:
         if driver:
             driver.quit()
 
-# A assinatura desta função foi corrigida para ter 'debug_mode' como último argumento
 def executar_workflow_busca(ano_alvo, gui_callback, results_callback, debug_mode):
     driver = None
     try:
@@ -100,10 +93,10 @@ def executar_workflow_busca(ano_alvo, gui_callback, results_callback, debug_mode
         
         if gui_callback.stop_requested: raise InterruptedError("Parada solicitada.")
         gui_callback.atualizar_progresso(10, 100, "Realizando login...", is_search=True)
-        step01_login_actions.login_e_navega_para_pai(driver, wait, gui_callback)
+        login.login_e_navega_para_pai(driver, wait, gui_callback)
         
         if gui_callback.stop_requested: raise InterruptedError("Parada solicitada.")
-        lojas_encontradas = step03_pai_search.executar_busca_lojas(driver, wait, ano_alvo, gui_callback)
+        lojas_encontradas = busca.executar_busca_lojas(driver, wait, ano_alvo, gui_callback)
         
         if lojas_encontradas:
             cnpjs_apenas = [loja['cnpj'] for loja in lojas_encontradas]

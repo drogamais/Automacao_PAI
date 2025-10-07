@@ -9,7 +9,7 @@ class SearchView(tk.Toplevel):
         self.controller = controller
         
         self.title("Buscar Lojas com Lançamentos")
-        self.geometry("550x450")
+        self.geometry("500x550")
 
         self.check_vars = []
         self._create_widgets()
