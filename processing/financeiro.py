@@ -39,23 +39,18 @@ def limpar_valor(valor_str):
     except (ValueError, TypeError):
         return None
 
-# <--- FUNÇÃO ALTERADA ---
 def limpar_percentual(perc_str):
     """
     Converte uma string de percentual ('32,93') para um float decimal (0.3293).
     Se o valor for NULO, vazio ou '-', retorna 1.0 (100%).
     """
-    # Verifica as condições para retornar 1.0 (100%)
-    # str(perc_str).strip() lida com células vazias ou com espaços em branco
     if perc_str is None or str(perc_str).strip() in ['', '-']:
         return 1.0
 
-    # Se não for uma das condições acima, tenta a conversão normal
     try:
         valor_limpo = str(perc_str).replace(',', '.')
         return float(valor_limpo) / 100
     except (ValueError, TypeError):
-        # Se a conversão falhar (ex: um texto inesperado), também retorna 1.0 como um valor padrão seguro
         return 1.0
 
 def extrair_dados_do_excel(caminho_arquivo, lojas_map):
@@ -110,7 +105,6 @@ def extrair_dados_do_excel(caminho_arquivo, lojas_map):
             "percentual_media_febrafar_6m": limpar_percentual(df_excel.iat[idx_linha, col_idx_map[COLUNA_PERCENTUAL_MEDIA_FEBRAFAR]])
         }
         
-        # Esta regra específica para "Total Líquido" continua a mesma, pois ela sobrescreve o que a função limpar_percentual faz
         if "Total Líquido de Vendas Realizadas" in dados_linha["indicador_nome"]:
             dados_linha["percentual_geral"] = 1.0
 
@@ -118,19 +112,81 @@ def extrair_dados_do_excel(caminho_arquivo, lojas_map):
         
     return pd.DataFrame(dados_extraidos).dropna(subset=['valor_geral'])
 
+def processar_arquivo(caminho_arquivo, lojas_map, conn):
+    """Processa um único arquivo Excel e insere os dados no banco."""
+    try:
+        cursor = conn.cursor()
+        df_arquivo_atual = extrair_dados_do_excel(caminho_arquivo, lojas_map)
+        
+        if df_arquivo_atual is None or df_arquivo_atual.empty:
+            print(f"\nNenhum dado financeiro válido foi extraído do arquivo {os.path.basename(caminho_arquivo)}.")
+            return
+
+        df_final = df_arquivo_atual.replace({np.nan: None})
+
+        # Adiciona colunas que não estão no arquivo de evolução, mas existem no banco
+        df_final['valor_media_loja_6m'] = None
+        df_final['percentual_media_loja_6m'] = None
+        df_final['valor_media_faixa_faturamento_6m'] = None
+        df_final['percentual_media_faixa_faturamento_6m'] = None
+        df_final['valor_media_febrafar_6m'] = None
+        df_final['percentual_media_febrafar_6m'] = None
+
+        ordem_colunas_db = [
+            'loja_numero', 'loja_nome', 'data_ref', 'indicador_nome', 
+            'valor_geral', 'percentual_geral',
+            'valor_media_loja_6m', 'percentual_media_loja_6m',
+            'valor_media_faixa_faturamento_6m', 'percentual_media_faixa_faturamento_6m',
+            'valor_media_febrafar_6m', 'percentual_media_febrafar_6m'
+        ]
+        df_final = df_final[ordem_colunas_db]
+
+        sql_insert = f"""
+            INSERT INTO {TABLE_NAME} (
+                loja_numero, loja_nome, data_ref, indicador_nome, 
+                valor_geral, percentual_geral, 
+                valor_media_loja_6m, percentual_media_loja_6m,
+                valor_media_faixa_faturamento_6m, percentual_media_faixa_faturamento_6m,
+                valor_media_febrafar_6m, percentual_media_febrafar_6m
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE
+                loja_nome=VALUES(loja_nome),
+                valor_geral=VALUES(valor_geral),
+                percentual_geral=VALUES(percentual_geral),
+                valor_media_loja_6m=VALUES(valor_media_loja_6m),
+                percentual_media_loja_6m=VALUES(percentual_media_loja_6m),
+                valor_media_faixa_faturamento_6m=VALUES(valor_media_faixa_faturamento_6m),
+                percentual_media_faixa_faturamento_6m=VALUES(percentual_media_faixa_faturamento_6m),
+                valor_media_febrafar_6m=VALUES(valor_media_febrafar_6m),
+                percentual_media_febrafar_6m=VALUES(percentual_media_febrafar_6m)
+        """
+        
+        dados_para_inserir = [tuple(row) for row in df_final.to_numpy()]
+        
+        print(f"Inserindo/atualizando {len(dados_para_inserir)} registros do arquivo {os.path.basename(caminho_arquivo)}...")
+        cursor.executemany(sql_insert, dados_para_inserir)
+        conn.commit()
+        print(f"SUCESSO! {cursor.rowcount} registros foram processados para o arquivo.")
+
+    except mariadb.Error as e:
+        print(f"ERRO ao processar o arquivo {os.path.basename(caminho_arquivo)}: {e}")
+        if conn and conn.open:
+            conn.rollback()
+        raise e
+
 def main():
+    """Função principal para execução autônoma do script."""
     conn = None
     try:
         print("Conectando ao banco de dados...")
         conn = mariadb.connect(**DB_CONFIG)
-        cursor = conn.cursor()
-
+        
         print("Carregando lojas...")
+        cursor = conn.cursor()
         cursor.execute("SELECT loja_numero, fantasia FROM bronze_lojas")
         lojas_map = {int(numero): nome for numero, nome in cursor.fetchall() if numero is not None}
         print(f"{len(lojas_map)} lojas válidas carregadas com sucesso.")
 
-        todos_os_dados = []
         arquivos_excel = [f for f in os.listdir(PASTA_DOS_ARQUIVOS_EXCEL) if f.endswith('.xlsx') and "financeiro" in f.lower() and not f.startswith('~$')]
         if not arquivos_excel:
             print(f"Nenhum arquivo Excel (.xlsx) encontrado na pasta: '{PASTA_DOS_ARQUIVOS_EXCEL}'")
@@ -141,65 +197,10 @@ def main():
                     continue
 
                 caminho_completo = os.path.join(PASTA_DOS_ARQUIVOS_EXCEL, arquivo)
-                df_arquivo_atual = extrair_dados_do_excel(caminho_completo, lojas_map)
-                if df_arquivo_atual is not None and not df_arquivo_atual.empty:
-                    todos_os_dados.append(df_arquivo_atual)
-        
-        if not todos_os_dados:
-            print("\nNenhum dado válido foi extraído dos arquivos. Encerrando.")
-        else:
-            df_final_completo = pd.concat(todos_os_dados, ignore_index=True)
-            
-            ordem_colunas_db = [
-                'loja_numero', 'loja_nome', 'data_ref', 'indicador_nome', 
-                'valor_geral', 'percentual_geral',
-                'valor_media_loja_6m', 'percentual_media_loja_6m',
-                'valor_media_faixa_faturamento_6m', 'percentual_media_faixa_faturamento_6m',
-                'valor_media_febrafar_6m', 'percentual_media_febrafar_6m'
-            ]
-            df_final_completo = df_final_completo[ordem_colunas_db]
-            df_final_completo = df_final_completo.replace({np.nan: None})
-
-            sql_insert = f"""
-                INSERT INTO {TABLE_NAME} (
-                    loja_numero, loja_nome, data_ref, indicador_nome, 
-                    valor_geral, percentual_geral, 
-                    valor_media_loja_6m, percentual_media_loja_6m,
-                    valor_media_faixa_faturamento_6m, percentual_media_faixa_faturamento_6m,
-                    valor_media_febrafar_6m, percentual_media_febrafar_6m
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE
-                    loja_nome=VALUES(loja_nome),
-                    valor_geral=VALUES(valor_geral),
-                    percentual_geral=VALUES(percentual_geral),
-                    valor_media_loja_6m=VALUES(valor_media_loja_6m),
-                    percentual_media_loja_6m=VALUES(percentual_media_loja_6m),
-                    valor_media_faixa_faturamento_6m=VALUES(valor_media_faixa_faturamento_6m),
-                    percentual_media_faixa_faturamento_6m=VALUES(percentual_media_faixa_faturamento_6m),
-                    valor_media_febrafar_6m=VALUES(valor_media_febrafar_6m),
-                    percentual_media_febrafar_6m=VALUES(percentual_media_febrafar_6m)
-            """
-            
-            dados_para_inserir = [tuple(row) for row in df_final_completo.to_numpy()]
-            tamanho_lote = 500
-            total_registros = len(dados_para_inserir)
-
-            print(f"\nIniciando inserção/atualização de {total_registros} registros em lotes de {tamanho_lote}...")
-            
-            registros_processados = 0
-            for i in range(0, total_registros, tamanho_lote):
-                lote_atual = dados_para_inserir[i:i + tamanho_lote]
-                
-                cursor.executemany(sql_insert, lote_atual)
-                conn.commit()
-                
-                registros_processados += len(lote_atual)
-                print(f"  -> Lote de {len(lote_atual)} registros processado. Total: {registros_processados}/{total_registros}")
-
-            print(f"SUCESSO! Operação concluída na tabela '{TABLE_NAME}'.")
+                processar_arquivo(caminho_completo, lojas_map, conn)
 
     except mariadb.Error as e:
-        print(f"ERRO: {e}")
+        print(f"ERRO de banco de dados no script principal: {e}")
         if conn and conn.open:
             conn.rollback()
         sys.exit(1)

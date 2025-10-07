@@ -7,7 +7,7 @@ from selenium.webdriver.support import expected_conditions as EC
 
 # Imports para a nova lógica de processamento
 from processing import financeiro, performance
-from utils import system  # <--- LINHA ADICIONADA PARA CORREÇÃO
+from utils import system
 
 def stoppable_sleep(duration, gui_callback):
     """Uma função de espera que pode ser interrompida."""
@@ -17,13 +17,11 @@ def stoppable_sleep(duration, gui_callback):
             raise InterruptedError("Parada solicitada durante a espera.")
         time.sleep(0.1)
 
-def _get_latest_file(path):
-    """Encontra o arquivo mais recente em um diretório."""
+def _get_downloaded_files(path):
+    """Encontra todos os arquivos .xlsx em um diretório."""
     files = os.listdir(path)
-    paths = [os.path.join(path, basename) for basename in files if basename.endswith('.xlsx')]
-    if not paths:
-        return None
-    return max(paths, key=os.path.getctime)
+    paths = [os.path.join(path, basename) for basename in files if basename.endswith('.xlsx') and not basename.startswith('~$')]
+    return paths
 
 def executar_acoes_pai(driver, wait, cnpj_alvo, ano_alvo, mes_inicial, mes_final, gui_callback, lojas_map, conn):
     """
@@ -31,7 +29,6 @@ def executar_acoes_pai(driver, wait, cnpj_alvo, ano_alvo, mes_inicial, mes_final
     """
     print(f"\nINICIANDO PROCESSAMENTO PARA O CNPJ: {cnpj_alvo} | Período: {mes_inicial}/{ano_alvo} a {mes_final}/{ano_alvo}")
     
-    # Define o caminho da pasta de downloads
     project_root = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
     pasta_downloads = os.path.join(project_root, "downloads")
 
@@ -97,35 +94,39 @@ def executar_acoes_pai(driver, wait, cnpj_alvo, ano_alvo, mes_inicial, mes_final
                     wait.until(EC.element_to_be_clickable((By.XPATH, "//a[contains(., ' Gerar Excel')]"))).click()
                     print("Download iniciado. Aguardando conclusão...")
                     
-                    time_limit = 30
+                    time_limit = 45  # Aumentado o tempo de espera para garantir ambos os downloads
                     start_time = time.time()
-                    latest_file = None
+                    downloaded_files = []
                     while time.time() - start_time < time_limit:
-                        latest_file = _get_latest_file(pasta_downloads)
-                        if latest_file:
+                        downloaded_files = _get_downloaded_files(pasta_downloads)
+                        if downloaded_files:
+                            # Se você espera dois arquivos, pode adicionar uma lógica para esperar por ambos
+                            # Por simplicidade, vamos apenas esperar um pouco mais após o primeiro ser detectado
+                            stoppable_sleep(10, gui_callback)
+                            downloaded_files = _get_downloaded_files(pasta_downloads) # Re-verifica a pasta
                             break
                         stoppable_sleep(5, gui_callback)
                     
-                    if not latest_file:
-                        raise Exception("Download do arquivo falhou ou demorou demais.")
+                    if not downloaded_files:
+                        raise Exception("Download do(s) arquivo(s) falhou ou demorou demais.")
                     
-                    print(f"Arquivo baixado: {os.path.basename(latest_file)}")
-                    gui_callback.atualizar_progresso(i, numero_de_relatorios, f"Baixado {i + 1}/{numero_de_relatorios}. Processando...")
+                    gui_callback.atualizar_progresso(i, numero_de_relatorios, f"Baixado(s) {len(downloaded_files)} arquivo(s). Processando...")
 
-                    if "financeiro" in latest_file.lower():
-                        financeiro.processar_arquivo(latest_file, lojas_map, conn)
-                    elif "performance" in latest_file.lower():
-                        performance.processar_arquivo(latest_file, lojas_map, conn)
-                    
-                    os.remove(latest_file)
-                    print(f"Arquivo {os.path.basename(latest_file)} processado e removido.")
+                    for file_path in downloaded_files:
+                        print(f"Processando arquivo: {os.path.basename(file_path)}")
+                        if "financeiro" in file_path.lower():
+                            financeiro.processar_arquivo(file_path, lojas_map, conn)
+                        elif "performance" in file_path.lower():
+                            performance.processar_arquivo(file_path, lojas_map, conn)
+                        
+                        os.remove(file_path)
+                        print(f"Arquivo {os.path.basename(file_path)} processado e removido.")
 
                 else:
                     print(f"Relatório {i + 1} com status '{status_element.text}' não será baixado.")
                 
                 gui_callback.atualizar_progresso(i + 1, numero_de_relatorios, f"Relatório {i + 1}/{numero_de_relatorios} verificado.")
                 
-                # Volta para a página anterior para selecionar o próximo relatório
                 driver.back()
                 stoppable_sleep(3, gui_callback)
 
