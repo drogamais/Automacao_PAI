@@ -43,21 +43,19 @@ def _selecionar_ano(driver, wait, ano_alvo_str, gui_callback):
             print(f"Ano {ano_alvo} selecionado.")
             return
         elif ano_atual > ano_alvo:
-            print(f"Ano atual ({ano_atual}) > Alvo ({ano_alvo}). Clicando em 'Anterior'.")
             driver.find_element(By.XPATH, btn_anterior_xpath).click()
         else:
-            print(f"Ano atual ({ano_atual}) < Alvo ({ano_alvo}). Clicando em 'Próximo'.")
             driver.find_element(By.XPATH, btn_proximo_xpath).click()
         
-        stoppable_sleep(1, gui_callback)
+        stoppable_sleep(0.5, gui_callback) # Reduzido para agilizar a seleção de ano
 
     raise Exception(f"Não foi possível selecionar o ano {ano_alvo} após 10 tentativas.")
 
-def executar_acoes_pai(driver, wait, cnpj_alvo, ano_alvo, mes_inicial, mes_final, gui_callback, lojas_map, conn):
+def executar_acoes_pai(driver, wait, cnpj_alvo, ano_inicial, mes_inicial, ano_final, mes_final, gui_callback, lojas_map, conn):
     """
     Executa o download e o processamento de todos os relatórios, navegando pela paginação.
     """
-    print(f"\nINICIANDO PROCESSAMENTO PARA O CNPJ: {cnpj_alvo} | Período: {mes_inicial}/{ano_alvo} a {mes_final}/{ano_alvo}")
+    print(f"\nINICIANDO PROCESSAMENTO PARA O CNPJ: {cnpj_alvo} | Período: {mes_inicial}/{ano_inicial} a {mes_final}/{ano_final}")
     
     project_root = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
     pasta_downloads = os.path.join(project_root, "downloads")
@@ -65,40 +63,36 @@ def executar_acoes_pai(driver, wait, cnpj_alvo, ano_alvo, mes_inicial, mes_final
     try:
         def aplicar_filtros_e_contar():
             driver.get("https://pai.febrafar.com.br/#!/avaliacao")
-            stoppable_sleep(3, gui_callback)
-
-            wait.until(EC.element_to_be_clickable((By.XPATH, "//a[contains(., 'Avaliação')]"))).click(); stoppable_sleep(2, gui_callback)
+            stoppable_sleep(2, gui_callback)
+            wait.until(EC.element_to_be_clickable((By.XPATH, "//a[contains(., 'Avaliação')]"))).click(); stoppable_sleep(1, gui_callback)
             wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Loja')]"))).click(); stoppable_sleep(1, gui_callback)
             wait.until(EC.element_to_be_clickable((By.XPATH, "//div[contains(@class, 'combobox') and .//span[text()='Selecione...']]"))).click(); stoppable_sleep(1, gui_callback)
             
             input_localizar = wait.until(EC.visibility_of_element_located((By.XPATH, "//input[@placeholder='Localizar']")))
             input_localizar.clear()
             input_localizar.send_keys(cnpj_alvo)
-            stoppable_sleep(2, gui_callback)
+            stoppable_sleep(1, gui_callback)
 
             wait.until(EC.element_to_be_clickable((By.XPATH, f"//div[contains(@class, 'list-item') and contains(text(), '{cnpj_alvo}')]"))).click(); stoppable_sleep(1, gui_callback)
             
             wait.until(EC.element_to_be_clickable((By.XPATH, "//div[contains(@class, 'combobox') and .//span[text()='Período inicial...']]"))).click(); stoppable_sleep(1, gui_callback)
-            _selecionar_ano(driver, wait, ano_alvo, gui_callback)
+            _selecionar_ano(driver, wait, ano_inicial, gui_callback)
             wait.until(EC.element_to_be_clickable((By.XPATH, f"//li[normalize-space()='{mes_inicial}']"))).click()
             
             wait.until(EC.element_to_be_clickable((By.XPATH, "//div[contains(@class, 'combobox') and .//span[text()='Período final...']]"))).click(); stoppable_sleep(1, gui_callback)
-            _selecionar_ano(driver, wait, ano_alvo, gui_callback)
+            _selecionar_ano(driver, wait, ano_final, gui_callback)
             wait.until(EC.element_to_be_clickable((By.XPATH, f"//li[normalize-space()='{mes_final}']"))).click()
             
             wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Aplicar filtros')]"))).click()
-            stoppable_sleep(5, gui_callback)
+            stoppable_sleep(4, gui_callback)
 
-            # --- NOVA LÓGICA DE CONTAGEM ---
             try:
                 info_element = wait.until(EC.visibility_of_element_located((By.XPATH, "//div[contains(@class, 'info mr-3 my-1')]/span")))
                 info_text = info_element.text
-                # Extrai o último número do texto "Exibindo registros de 1 até 10 de 11 registros encontrados."
                 match = re.search(r'de (\d+) registros encontrados', info_text)
                 if match:
                     return int(match.group(1))
                 else:
-                    # Se o padrão não corresponder, conta os elementos na página como um fallback
                     return len(driver.find_elements(By.XPATH, "//button[@tooltip='Consultar Lançamentos']"))
             except (TimeoutException, NoSuchElementException):
                 print("Nenhum registro encontrado.")
@@ -113,8 +107,6 @@ def executar_acoes_pai(driver, wait, cnpj_alvo, ano_alvo, mes_inicial, mes_final
 
         gui_callback.atualizar_progresso(0, numero_de_relatorios, f"Encontrados {numero_de_relatorios} relatórios. Iniciando downloads...")
         
-        pagina_atual = -1
-
         for i in range(numero_de_relatorios):
             if gui_callback.stop_requested:
                 raise InterruptedError("Parada solicitada.")
@@ -122,18 +114,18 @@ def executar_acoes_pai(driver, wait, cnpj_alvo, ano_alvo, mes_inicial, mes_final
             print(f"\n--- Iniciando verificação do relatório {i + 1} de {numero_de_relatorios} ---")
             
             try:
-                pagina_alvo = i // 10
+                # --- LÓGICA CORRIGIDA ---
+                # Recarrega a página e os filtros a cada iteração para garantir um estado limpo
+                aplicar_filtros_e_contar()
                 
-                # Se o relatório não está na página atual, navega para a página correta
-                if pagina_alvo != pagina_atual:
-                    print(f"Relatório {i + 1} está na página {pagina_alvo + 1}. Navegando...")
-                    aplicar_filtros_e_contar() # Volta para a primeira página
+                pagina_alvo = i // 10
+                if pagina_alvo > 0:
+                    print(f"Navegando para a página {pagina_alvo + 1}...")
                     for page_click in range(pagina_alvo):
                         seletor_proximo = (By.XPATH, "//li[contains(@class, 'pagination-next') and not(contains(@class, 'disabled'))]/a")
                         botao_proximo = wait.until(EC.element_to_be_clickable(seletor_proximo))
                         botao_proximo.click()
                         stoppable_sleep(3, gui_callback)
-                    pagina_atual = pagina_alvo
 
                 index_na_pagina = i % 10
                 seletor_botoes_consulta = (By.XPATH, "//button[@tooltip='Consultar Lançamentos']")
@@ -143,60 +135,49 @@ def executar_acoes_pai(driver, wait, cnpj_alvo, ano_alvo, mes_inicial, mes_final
                     raise IndexError(f"Erro de índice: Tentando acessar o relatório {index_na_pagina + 1} na página, mas apenas {len(botoes_consulta_atualizados)} foram encontrados.")
 
                 botoes_consulta_atualizados[index_na_pagina].click()
-                
-                print("Aguardando carregamento da página do relatório...")
                 stoppable_sleep(10, gui_callback)
 
                 status_element = wait.until(EC.visibility_of_element_located((By.XPATH, "//h5/span[last()]")))
                 status_text = status_element.text.strip().upper()
 
                 if status_text == "APROVADO":
-                    print(f"Relatório {i + 1} está APROVADO. Baixando...")
+                    print("Relatório APROVADO. Baixando...")
                     system.limpar_pasta_downloads()
                     stoppable_sleep(20, gui_callback)
                     wait.until(EC.element_to_be_clickable((By.XPATH, "//a[contains(., ' Gerar Excel')]"))).click()
-                    print("Download iniciado. Aguardando conclusão...")
                     
-                    time_limit = 45
+                    time_limit = 60
                     start_time = time.time()
                     downloaded_files = []
+                    expected_files = 2
+                    
                     while time.time() - start_time < time_limit:
                         downloaded_files = _get_downloaded_files(pasta_downloads)
-                        if downloaded_files:
-                            stoppable_sleep(5, gui_callback)
-                            downloaded_files = _get_downloaded_files(pasta_downloads)
+                        if len(downloaded_files) >= expected_files:
+                            print(f"Detectado(s) {len(downloaded_files)} arquivo(s).")
                             break
                         stoppable_sleep(5, gui_callback)
                     
                     if not downloaded_files:
-                        raise Exception("Download do(s) arquivo(s) falhou ou demorou demais.")
+                        raise Exception("Download falhou ou não encontrou os 2 arquivos esperados.")
                     
-                    gui_callback.atualizar_progresso(i, numero_de_relatorios, f"Baixado(s) {len(downloaded_files)} arquivo(s). Processando...")
+                    gui_callback.atualizar_progresso(i, numero_de_relatorios, "Processando arquivo(s)...")
 
                     for file_path in downloaded_files:
-                        print(f"Processando arquivo: {os.path.basename(file_path)}")
+                        print(f"Processando: {os.path.basename(file_path)}")
                         if "financeiro" in file_path.lower():
                             financeiro.processar_arquivo(file_path, lojas_map, conn)
                         elif "performance" in file_path.lower():
                             performance.processar_arquivo(file_path, lojas_map, conn)
-                        
                         os.remove(file_path)
-                        print(f"Arquivo {os.path.basename(file_path)} processado e removido.")
                 else:
-                    print(f"Relatório {i + 1} com status '{status_element.text}' não será baixado.")
+                    print(f"Relatório com status '{status_element.text}' não será baixado.")
                 
                 gui_callback.atualizar_progresso(i + 1, numero_de_relatorios, f"Relatório {i + 1}/{numero_de_relatorios} verificado.")
-                
-                # Após processar um item, é preciso voltar para a lista para o próximo
-                driver.back()
-                stoppable_sleep(3, gui_callback)
                 
             except Exception as e_loop:
                 print(f"Erro ao processar o relatório {i + 1}: {e_loop}")
                 gui_callback.atualizar_progresso(i + 1, numero_de_relatorios, f"Erro no relatório {i + 1}. Pulando...")
-                # Força o retorno para a página de avaliação para tentar o próximo
-                driver.get("https://pai.febrafar.com.br/#!/avaliacao")
-                pagina_atual = -1 # Reseta o contador da página
                 continue
         
         print("\nProcesso de scraping finalizado.")

@@ -10,12 +10,9 @@ class MainView(ttkb.Frame):
         self.parent = parent
         self.controller = controller
 
-        # --- CORREÇÃO AQUI ---
-        # Variáveis movidas para o início do __init__
         self.meses = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"]
         self.debug_mode_var = tk.BooleanVar()
 
-        # Agora, chame os métodos que constroem a interface
         self._create_menu()
         self._create_widgets()
 
@@ -23,14 +20,12 @@ class MainView(ttkb.Frame):
         menubar = tk.Menu(self.parent)
         self.parent.config(menu=menubar)
 
-        # Menu Arquivo
         file_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Arquivo", menu=file_menu)
         file_menu.add_command(label="Buscar Lojas com Lançamentos", command=self.controller.open_search_window)
         file_menu.add_separator()
         file_menu.add_command(label="Sair", command=self.parent.quit)
 
-        # Menu Opções
         options_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Opções", menu=options_menu)
         options_menu.add_checkbutton(
@@ -39,36 +34,40 @@ class MainView(ttkb.Frame):
         )
 
     def _create_widgets(self):
-        # --- Grupo de Controles ---
         controls_frame = ttkb.LabelFrame(self, text="Controles de Automação", padding="10 10 10 10")
         controls_frame.pack(fill=tk.X, expand=True, pady=5)
 
-        ttkb.Label(controls_frame, text="Número da Loja:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
-        self.loja_numero_entry = ttkb.Entry(controls_frame, width=25)
-        self.loja_numero_entry.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
+        ttkb.Label(controls_frame, text="Número da Loja:").grid(row=0, column=0, columnspan=2, padx=5, pady=5, sticky="w")
+        self.loja_numero_entry = ttkb.Entry(controls_frame)
+        self.loja_numero_entry.grid(row=0, column=2, columnspan=2, padx=5, pady=5, sticky="ew")
         self.loja_numero_entry.focus()
         
-        ttkb.Label(controls_frame, text="Ano:").grid(row=1, column=0, padx=5, pady=5, sticky="w")
-        self.ano_entry = ttkb.Entry(controls_frame, width=25)
-        self.ano_entry.grid(row=1, column=1, padx=5, pady=5, sticky="ew")
-        self.ano_entry.insert(0, str(datetime.now().year))
-
-        ttkb.Label(controls_frame, text="Período Inicial:").grid(row=2, column=0, padx=5, pady=5, sticky="w")
-        self.mes_inicial_combo = ttkb.Combobox(controls_frame, values=self.meses, width=22, state="readonly")
-        self.mes_inicial_combo.grid(row=2, column=1, padx=5, pady=5, sticky="ew")
+        # --- Período Inicial ---
+        ttkb.Label(controls_frame, text="Período Inicial:").grid(row=1, column=0, columnspan=2, padx=5, pady=5, sticky="w")
+        self.mes_inicial_combo = ttkb.Combobox(controls_frame, values=self.meses, width=10, state="readonly")
+        self.mes_inicial_combo.grid(row=1, column=2, padx=5, pady=5, sticky="ew")
         self.mes_inicial_combo.set("Jan")
-
-        ttkb.Label(controls_frame, text="Período Final:").grid(row=3, column=0, padx=5, pady=5, sticky="w")
-        self.mes_final_combo = ttkb.Combobox(controls_frame, values=self.meses, width=22, state="readonly")
-        self.mes_final_combo.grid(row=3, column=1, padx=5, pady=5, sticky="ew")
-        self.mes_final_combo.set("Dez")
         
-        controls_frame.columnconfigure(1, weight=1)
+        self.ano_inicial_entry = ttkb.Entry(controls_frame, width=10)
+        self.ano_inicial_entry.grid(row=1, column=3, padx=5, pady=5, sticky="ew")
+        self.ano_inicial_entry.insert(0, str(datetime.now().year))
+
+        # --- Período Final ---
+        ttkb.Label(controls_frame, text="Período Final:").grid(row=2, column=0, columnspan=2, padx=5, pady=5, sticky="w")
+        self.mes_final_combo = ttkb.Combobox(controls_frame, values=self.meses, width=10, state="readonly")
+        self.mes_final_combo.grid(row=2, column=2, padx=5, pady=5, sticky="ew")
+        self.mes_final_combo.set("Dez")
+
+        self.ano_final_entry = ttkb.Entry(controls_frame, width=10)
+        self.ano_final_entry.grid(row=2, column=3, padx=5, pady=5, sticky="ew")
+        self.ano_final_entry.insert(0, str(datetime.now().year))
+
+        controls_frame.columnconfigure((2, 3), weight=1)
 
         # --- Grupo de Ações ---
         action_frame = ttkb.LabelFrame(self, text="Ações", padding="10 10 10 10")
         action_frame.pack(fill=tk.X, expand=True, pady=10)
-        action_frame.columnconfigure((0, 1, 2), weight=1) # Faz os botões se expandirem
+        action_frame.columnconfigure((0, 1, 2), weight=1)
 
         self.start_button = ttkb.Button(action_frame, text="Extração Completa", command=self.controller.start_full_automation, bootstyle="primary")
         self.start_button.grid(row=0, column=0, padx=5, pady=5, sticky="ew")

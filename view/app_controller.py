@@ -2,6 +2,7 @@
 import tkinter as tk
 from tkinter import messagebox
 import threading
+from datetime import datetime
 from .main_view import MainView
 from .search_view import SearchView
 from controller import automation
@@ -20,6 +21,50 @@ class AppController:
 
         self.main_view = MainView(root, self)
         self.main_view.pack(fill=tk.BOTH, expand=True)
+
+    def _validate_and_get_dates(self):
+        """Valida os campos de data e retorna um dicionário ou None."""
+        try:
+            ano_ini_str = self.main_view.ano_inicial_entry.get()
+            ano_fim_str = self.main_view.ano_final_entry.get()
+            mes_ini_str = self.main_view.mes_inicial_combo.get()
+            mes_fim_str = self.main_view.mes_final_combo.get()
+
+            if not (ano_ini_str.isdigit() and ano_fim_str.isdigit()):
+                messagebox.showerror("Entrada Inválida", "Os anos devem ser números válidos.")
+                return None
+
+            ano_ini = int(ano_ini_str)
+            ano_fim = int(ano_fim_str)
+            
+            # Converte nome do mês para número
+            mes_ini = self.main_view.meses.index(mes_ini_str) + 1
+            mes_fim = self.main_view.meses.index(mes_fim_str) + 1
+
+            data_inicio = datetime(ano_ini, mes_ini, 1)
+            data_fim = datetime(ano_fim, mes_fim, 1)
+
+            if data_inicio > data_fim:
+                messagebox.showerror("Data Inválida", "O período inicial não pode ser maior que o período final.")
+                return None
+            
+            # Calcula a diferença em meses
+            diff_meses = (data_fim.year - data_inicio.year) * 12 + (data_fim.month - data_inicio.month)
+
+            if diff_meses >= 24:
+                messagebox.showerror("Intervalo Excedido", "O intervalo entre as datas não pode ser maior que dois anos.")
+                return None
+
+            return {
+                "ano_inicial": ano_ini_str,
+                "mes_inicial": mes_ini_str,
+                "ano_final": ano_fim_str,
+                "mes_final": mes_fim_str
+            }
+
+        except (ValueError, IndexError):
+            messagebox.showerror("Erro de Data", "Por favor, verifique se os meses e anos estão corretos.")
+            return None
 
     def _start_automation_thread(self, target_func, *args):
         self.stop_requested = False
@@ -44,23 +89,27 @@ class AppController:
 
     def start_full_automation(self):
         loja = self.main_view.loja_numero_entry.get()
-        ano = self.main_view.ano_entry.get()
-        mes_ini = self.main_view.mes_inicial_combo.get()
-        mes_fim = self.main_view.mes_final_combo.get()
-        if not (loja.isdigit() and ano.isdigit()):
-            messagebox.showerror("Entrada Inválida", "Número da loja e ano devem ser preenchidos corretamente.")
+        if not loja.isdigit():
+            messagebox.showerror("Entrada Inválida", "Número da loja deve ser preenchido corretamente.")
             return
-        self._start_automation_thread(automation.executar_workflow_completo, loja, ano, mes_ini, mes_fim, self)
+        
+        dates = self._validate_and_get_dates()
+        if not dates:
+            return
+
+        self._start_automation_thread(automation.executar_workflow_completo, loja, dates["ano_inicial"], dates["mes_inicial"], dates["ano_final"], dates["mes_final"], self)
 
     def start_evolution_automation(self):
         loja = self.main_view.loja_numero_entry.get()
-        ano = self.main_view.ano_entry.get()
-        mes_ini = self.main_view.mes_inicial_combo.get()
-        mes_fim = self.main_view.mes_final_combo.get()
-        if not (loja.isdigit() and ano.isdigit()):
-            messagebox.showerror("Entrada Inválida", "Número da loja e ano devem ser preenchidos corretamente.")
+        if not loja.isdigit():
+            messagebox.showerror("Entrada Inválida", "Número da loja deve ser preenchido corretamente.")
             return
-        self._start_automation_thread(automation.executar_workflow_evolucao, loja, ano, mes_ini, mes_fim, self)
+
+        dates = self._validate_and_get_dates()
+        if not dates:
+            return
+
+        self._start_automation_thread(automation.executar_workflow_evolucao, loja, dates["ano_inicial"], dates["mes_inicial"], dates["ano_final"], dates["mes_final"], self)
 
     def start_search(self):
         ano = self.search_window.search_ano_entry.get()
@@ -72,25 +121,24 @@ class AppController:
     def start_batch_automation(self):
         self.is_batch_running = True
         
-        ano = self.main_view.ano_entry.get()
-        mes_ini = self.main_view.mes_inicial_combo.get()
-        mes_fim = self.main_view.mes_final_combo.get()
+        dates = self._validate_and_get_dates()
+        if not dates:
+            self.is_batch_running = False
+            return
         
         lojas_selecionadas = []
         if self.search_window:
             for var, chk, info in self.search_window.check_vars:
-                # Apenas adiciona lojas que estão marcadas E não foram concluídas (não estão desabilitadas)
                 if var.get() and chk.cget("state") != tk.DISABLED:
                     lojas_selecionadas.append((chk, info))
         
         if not lojas_selecionadas:
             messagebox.showwarning("Nenhuma Loja", "Nenhuma loja nova foi selecionada para a automação.", parent=self.search_window)
             self.is_batch_running = False
-            # Reativa os botões se nenhuma loja for selecionada, para permitir nova interação
             self._set_buttons_state(tk.NORMAL)
             return
 
-        self._start_automation_thread(automation.executar_workflow_em_lote, lojas_selecionadas, ano, mes_ini, mes_fim, self)
+        self._start_automation_thread(automation.executar_workflow_em_lote, lojas_selecionadas, dates["ano_inicial"], dates["mes_inicial"], dates["ano_final"], dates["mes_final"], self)
 
     def request_stop(self):
         if messagebox.askyesno("Confirmar Parada", "Tem certeza que deseja interromper a operação?"):
