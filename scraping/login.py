@@ -1,12 +1,12 @@
-# Arquivo: step01_login_actions.py
-
+# Arquivo: scraping/login.py
 import time
-import json 
-from sys import exit 
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
+
+# Importa a configuração de login diretamente
+from utils.config import LOGIN_CONFIG
 
 def stoppable_sleep(duration, gui_callback):
     """Uma função de espera que pode ser interrompida."""
@@ -15,18 +15,10 @@ def stoppable_sleep(duration, gui_callback):
             raise InterruptedError("Parada solicitada durante a espera.")
         time.sleep(1)
 
-def carregar_credenciais():
-    try:
-        with open('credenciais.json', 'r') as f:
-            credenciais = json.load(f)
-            return credenciais['usuario'], credenciais['senha']
-    except FileNotFoundError:
-        exit("Erro: Arquivo 'credenciais.json' não encontrado!")
-    except KeyError:
-        exit("Erro: O arquivo 'credenciais.json' deve conter as chaves 'usuario' e 'senha'.")
-
-def login_e_navega_para_pai(driver, wait, gui_callback): # Adicionado gui_callback
-    USUARIO, SENHA = carregar_credenciais()
+def login_e_navega_para_pai(driver, wait, gui_callback):
+    # Usa as credenciais do dicionário importado
+    USUARIO = LOGIN_CONFIG['usuario']
+    SENHA = LOGIN_CONFIG['senha']
     URL_LOGIN = "https://orion.febrafar.com.br/login"
 
     print("Iniciando o navegador e acessando a página de login...")

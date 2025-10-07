@@ -1,5 +1,5 @@
 @echo off
-TITLE Automação de Relatórios PAI
+TITLE Automacao de Relatorios PAI
 
 REM Muda o diretório para a pasta onde o .bat está localizado
 cd /d "%~dp0"

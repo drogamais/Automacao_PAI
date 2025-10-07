@@ -1,17 +1,12 @@
 # Arquivo: utils/database.py
 import mariadb
-
-# --- CONFIGURAÇÕES ---
-DB_USER = "drogamais"
-DB_PASSWORD = "dB$MYSql@2119"
-DB_HOST = "10.48.12.20"
-DB_PORT = 3306
-DB_NAME = "dbDrogamais"
+from .config import DB_CONFIG # Importa a configuração
 
 def buscar_cnpj_no_banco(loja_numero):
     conn = None
     try:
-        conn = mariadb.connect(user=DB_USER, password=DB_PASSWORD, host=DB_HOST, port=DB_PORT, database=DB_NAME)
+        # Usa as configurações importadas
+        conn = mariadb.connect(**DB_CONFIG)
         cursor = conn.cursor()
         query = "SELECT cnpj FROM bronze_lojas WHERE loja_numero = ?"
         cursor.execute(query, (loja_numero,))
@@ -26,7 +21,8 @@ def buscar_lojas_por_cnpjs(cnpjs):
         return []
     conn = None
     try:
-        conn = mariadb.connect(user=DB_USER, password=DB_PASSWORD, host=DB_HOST, port=DB_PORT, database=DB_NAME)
+        # Usa as configurações importadas
+        conn = mariadb.connect(**DB_CONFIG)
         cursor = conn.cursor(dictionary=True)
         placeholders = ', '.join(['%s'] * len(cnpjs))
         query = f"SELECT loja_numero, cnpj, fantasia FROM bronze_lojas WHERE cnpj IN ({placeholders})"

@@ -5,13 +5,9 @@ import mariadb
 import sys
 from datetime import datetime
 import numpy as np
+from utils.config import DB_CONFIG
 
-# --- CONFIGURAÇÕES ---
-DB_USER = "drogamais"
-DB_PASSWORD = "dB$MYSql@2119"
-DB_HOST = "10.48.12.20"
-DB_PORT = 3306
-DB_NAME = "dbDrogamais"
+# Tabela usada no banco
 TABLE_NAME = "bronze_pai_financeiro"
 PASTA_DOS_ARQUIVOS_EXCEL = os.path.join(os.path.dirname(os.path.realpath(__file__)), "downloads")
 
@@ -125,7 +121,7 @@ def main():
     conn = None
     try:
         print("Conectando ao banco de dados...")
-        conn = mariadb.connect(user=DB_USER, password=DB_PASSWORD, host=DB_HOST, port=DB_PORT, database=DB_NAME)
+        conn = mariadb.connect(**DB_CONFIG)
         cursor = conn.cursor()
 
         print("Carregando lojas...")
