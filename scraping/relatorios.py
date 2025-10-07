@@ -104,7 +104,7 @@ def executar_acoes_pai(driver, wait, cnpj_alvo, ano_alvo, mes_inicial, mes_final
                         latest_file = _get_latest_file(pasta_downloads)
                         if latest_file:
                             break
-                        stoppable_sleep(1, gui_callback)
+                        stoppable_sleep(5, gui_callback)
                     
                     if not latest_file:
                         raise Exception("Download do arquivo falhou ou demorou demais.")
