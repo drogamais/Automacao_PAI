@@ -26,8 +26,9 @@ def fechar_processos_excel():
 def limpar_pasta_downloads():
     """Apaga todos os arquivos na pasta de downloads."""
     print("Limpando a pasta de downloads...")
-    caminho_script = os.path.dirname(os.path.realpath(os.path.join(os.getcwd(), __file__, '..')))
-    pasta_downloads = os.path.join(caminho_script, "downloads")
+    # Define o caminho da pasta de downloads a partir da raiz do projeto
+    project_root = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+    pasta_downloads = os.path.join(project_root, "downloads")
     
     if not os.path.exists(pasta_downloads):
         os.makedirs(pasta_downloads)

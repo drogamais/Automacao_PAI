@@ -6,8 +6,9 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 
 def setup_driver(debug_mode):
-    caminho_script = os.path.dirname(os.path.realpath(os.path.join(os.getcwd(), __file__, '..')))
-    pasta_downloads = os.path.join(caminho_script, "downloads")
+    # Define o caminho da pasta de downloads a partir da raiz do projeto
+    project_root = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+    pasta_downloads = os.path.join(project_root, "downloads")
     
     chrome_options = Options()
     prefs = {

@@ -103,15 +103,19 @@ class AppController:
             return
         self.search_window = SearchView(self.root, self)
 
+    # --- FUNÇÃO MODIFICADA ---
     def atualizar_progresso(self, valor, maximo, texto_status, is_search=False):
-        if self.stop_requested: return
-        
-        # --- LÓGICA ATUALIZADA ---
-        # Se uma operação em lote estiver a decorrer, força a atualização na janela principal.
+        if self.stop_requested:
+            return
+        # Agenda a atualização da GUI para ser executada na thread principal
+        self.root.after(0, self._do_update_progresso, valor, maximo, texto_status, is_search)
+
+    # --- NOVA FUNÇÃO AUXILIAR ---
+    def _do_update_progresso(self, valor, maximo, texto_status, is_search):
+        # Esta função é executada pela thread principal e pode atualizar a GUI com segurança
         if self.is_batch_running:
             target_label = self.main_view.status_label
             target_bar = self.main_view.progress_bar
-        # Caso contrário, usa a lógica original.
         elif is_search and self.search_window and self.search_window.winfo_exists():
             target_label = self.search_window.search_status_label
             target_bar = self.search_window.search_progress_bar
@@ -122,7 +126,8 @@ class AppController:
         target_label.config(text=texto_status)
         target_bar['maximum'] = maximo
         target_bar['value'] = valor
-        self.root.update_idletasks()
+        # O self.root.update_idletasks() não é mais necessário aqui,
+        # pois o loop principal do Tkinter cuidará da atualização.
 
     def finalizar_automacao(self, sucesso=True, mensagem=""):
         # --- NOVO: Reseta o estado de lote ao finalizar ---

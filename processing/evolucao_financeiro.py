@@ -9,7 +9,8 @@ from utils.config import DB_CONFIG
 
 # Tabela no banco
 TABLE_NAME = "bronze_pai_financeiro"
-PASTA_DOS_ARQUIVOS_EXCEL = os.path.join(os.path.dirname(os.path.realpath(__file__)), "downloads")
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+PASTA_DOS_ARQUIVOS_EXCEL = os.path.join(PROJECT_ROOT, "downloads")
 
 # --- REGRAS DE EXTRAÇÃO ---
 LINHAS_PARA_EXTRAIR = [
