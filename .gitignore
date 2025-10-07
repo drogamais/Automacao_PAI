@@ -1,8 +1,23 @@
+# Arquivo: .gitignore
+
+# Arquivos de compilação do PyInstaller
+/build/
+/dist/
+*.spec
+
+# Pastas de dados e downloads
 Dados/Planilhas Financeiro
 Dados/Planilhas Performance
-downloads
+downloads/
+
+# Arquivos de cache e logs
+__pycache__/
+*.log
 erro_screenshot_fatal.png
 erro_screenshot_fatal_evolucao.png
-__pycache__
-venv
+
+# Ambiente Virtual
+venv/
+
+# Arquivos de configuração com senhas
 config.json
