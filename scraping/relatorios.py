@@ -95,10 +95,11 @@ def executar_acoes_pai(driver, wait, cnpj_alvo, ano_alvo, mes_inicial, mes_final
 
                 if status_text == "APROVADO":
                     print(f"Relatório {i + 1} está APROVADO. Baixando...")
+                    stoppable_sleep(20, gui_callback)
                     wait.until(EC.element_to_be_clickable((By.XPATH, "//a[contains(., ' Gerar Excel')]"))).click()
                     print("Download iniciado. Aguardando...")
                     # --- ALTERAÇÃO 2 AQUI ---
-                    stoppable_sleep(20, gui_callback) # Aumentado de 10s para 20s
+                    stoppable_sleep(5, gui_callback)
                     gui_callback.atualizar_progresso(i + 1, numero_de_relatorios, f"Baixado {i + 1} de {numero_de_relatorios} relatórios...")
                 else:
                     print(f"Relatório {i + 1} com status '{status_element.text}' não será baixado.")
