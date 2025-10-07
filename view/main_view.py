@@ -9,12 +9,12 @@ class MainView(ttk.Frame):
         self.parent = parent
         self.controller = controller
 
-        # Configura o menu
-        self._create_menu()
-
         # Variáveis
         self.meses = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"]
         self.debug_mode_var = tk.BooleanVar()
+
+        # Configura o menu
+        self._create_menu()
 
         # Cria os widgets
         self._create_widgets()
@@ -23,11 +23,20 @@ class MainView(ttk.Frame):
         menubar = tk.Menu(self.parent)
         self.parent.config(menu=menubar)
 
+        # Menu Arquivo
         file_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Arquivo", menu=file_menu)
         file_menu.add_command(label="Buscar Lojas com Lançamentos", command=self.controller.open_search_window)
         file_menu.add_separator()
         file_menu.add_command(label="Sair", command=self.parent.quit)
+
+        # --- NOVO MENU OPÇÕES ---
+        options_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Opções", menu=options_menu)
+        options_menu.add_checkbutton(
+            label="Executar em modo de depuração (navegador visível)",
+            variable=self.debug_mode_var
+        )
 
     def _create_widgets(self):
         frame_loja_ano = ttk.Frame(self)
@@ -56,12 +65,7 @@ class MainView(ttk.Frame):
         self.mes_final_combo.grid(row=1, column=1, padx=5, pady=2)
         self.mes_final_combo.set("Dez")
 
-        self.debug_checkbutton = ttk.Checkbutton(
-            self,
-            text="Executar em modo de depuração (navegador visível)",
-            variable=self.debug_mode_var
-        )
-        self.debug_checkbutton.pack(pady=10)
+        # --- O CHECKBUTTON FOI REMOVIDO DAQUI ---
 
         button_frame = ttk.Frame(self)
         button_frame.pack(pady=10)
