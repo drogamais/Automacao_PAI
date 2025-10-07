@@ -94,7 +94,7 @@ Pode compilar a aplicação num executável (`.exe`) para facilitar a distribui�
 2.  **Execute o PyInstaller:** No terminal (com o ambiente virtual ativado), execute o comando:
 
     ```bash
-    pyinstaller --name "Automacao PAI" --windowed --icon="assets/icone.ico" --add-data "config.json:." main.py
+    pyinstaller --name "Automacao PAI" --windowed --icon="assets/icone.ico" --add-data "config.json:." --add-data "assets:assets" main.py
     ```
 
 3.  **Encontre o Executável:** Após a compilação, uma nova pasta `dist` será criada. Dentro dela, encontrará a pasta `Automacao PAI`. O seu programa pronto para uso é o `Automacao PAI.exe` que está dentro desta pasta. Para partilhar, basta compactar a pasta `Automacao PAI` inteira e enviá-la.
