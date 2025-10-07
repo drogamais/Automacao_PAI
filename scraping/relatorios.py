@@ -1,3 +1,5 @@
+# Arquivo: scraping/relatorios.py
+
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -45,7 +47,6 @@ def executar_acoes_pai(driver, wait, cnpj_alvo, ano_alvo, mes_inicial, mes_final
     print(f"\nINICIANDO PROCESSAMENTO PARA O CNPJ: {cnpj_alvo} | Período: {mes_inicial}/{ano_alvo} a {mes_final}/{ano_alvo}")
     
     try:
-        # Lógica para aplicar filtros
         def aplicar_filtros_completos():
             wait.until(EC.element_to_be_clickable((By.XPATH, "//a[contains(., 'Avaliação')]"))).click(); stoppable_sleep(2, gui_callback)
             wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Loja')]"))).click(); stoppable_sleep(1, gui_callback)
@@ -53,12 +54,10 @@ def executar_acoes_pai(driver, wait, cnpj_alvo, ano_alvo, mes_inicial, mes_final
             wait.until(EC.visibility_of_element_located((By.XPATH, "//input[@placeholder='Localizar']"))).send_keys(cnpj_alvo); stoppable_sleep(2, gui_callback)
             wait.until(EC.element_to_be_clickable((By.XPATH, f"//div[contains(@class, 'list-item') and contains(text(), '{cnpj_alvo}')]"))).click(); stoppable_sleep(1, gui_callback)
             
-            # Período Inicial
             wait.until(EC.element_to_be_clickable((By.XPATH, "//div[contains(@class, 'combobox') and .//span[text()='Período inicial...']]"))).click(); stoppable_sleep(1, gui_callback)
             _selecionar_ano(driver, wait, ano_alvo, gui_callback)
             wait.until(EC.element_to_be_clickable((By.XPATH, f"//li[normalize-space()='{mes_inicial}']"))).click()
             
-            # Período Final
             wait.until(EC.element_to_be_clickable((By.XPATH, "//div[contains(@class, 'combobox') and .//span[text()='Período final...']]"))).click(); stoppable_sleep(1, gui_callback)
             _selecionar_ano(driver, wait, ano_alvo, gui_callback)
             wait.until(EC.element_to_be_clickable((By.XPATH, f"//li[normalize-space()='{mes_final}']"))).click()
@@ -66,7 +65,6 @@ def executar_acoes_pai(driver, wait, cnpj_alvo, ano_alvo, mes_inicial, mes_final
             wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Aplicar filtros')]"))).click()
             stoppable_sleep(3, gui_callback)
 
-        # Primeira aplicação de filtros para contagem
         gui_callback.atualizar_progresso(0, 100, "Filtrando para contar relatórios...")
         aplicar_filtros_completos()
         
@@ -83,14 +81,14 @@ def executar_acoes_pai(driver, wait, cnpj_alvo, ano_alvo, mes_inicial, mes_final
             print(f"\n--- Iniciando verificação do relatório {i + 1} de {numero_de_relatorios} ---")
             
             try:
-                # Reaplica os filtros dentro do loop
                 aplicar_filtros_completos()
 
                 botoes_consulta_atualizados = wait.until(EC.presence_of_all_elements_located(seletor_botoes_consulta))
                 botoes_consulta_atualizados[i].click()
                 
                 print("Aguardando carregamento da página do relatório...")
-                stoppable_sleep(30, gui_callback)
+                # --- ALTERAÇÃO 1 AQUI ---
+                stoppable_sleep(10, gui_callback) # Reduzido de 30s para 10s
 
                 status_element = wait.until(EC.visibility_of_element_located((By.XPATH, "//h5/span[last()]")))
                 status_text = status_element.text.strip().upper()
@@ -99,7 +97,8 @@ def executar_acoes_pai(driver, wait, cnpj_alvo, ano_alvo, mes_inicial, mes_final
                     print(f"Relatório {i + 1} está APROVADO. Baixando...")
                     wait.until(EC.element_to_be_clickable((By.XPATH, "//a[contains(., ' Gerar Excel')]"))).click()
                     print("Download iniciado. Aguardando...")
-                    stoppable_sleep(10, gui_callback)
+                    # --- ALTERAÇÃO 2 AQUI ---
+                    stoppable_sleep(20, gui_callback) # Aumentado de 10s para 20s
                     gui_callback.atualizar_progresso(i + 1, numero_de_relatorios, f"Baixado {i + 1} de {numero_de_relatorios} relatórios...")
                 else:
                     print(f"Relatório {i + 1} com status '{status_element.text}' não será baixado.")

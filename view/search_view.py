@@ -3,6 +3,7 @@ import tkinter as tk
 from tkinter import ttk
 import ttkbootstrap as ttkb
 from datetime import datetime
+from utils.config import resource_path
 
 class SearchView(tk.Toplevel):
     def __init__(self, parent, controller):
@@ -11,6 +12,9 @@ class SearchView(tk.Toplevel):
         
         self.title("Buscar Lojas com Lançamentos")
         self.geometry("500x550")
+
+        # -- Define o ícone da janela de busca --
+        self.iconbitmap(resource_path("assets/icone.ico"))
 
         self.check_vars = []
         self._create_widgets()
