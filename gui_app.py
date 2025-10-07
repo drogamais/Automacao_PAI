@@ -273,8 +273,10 @@ class AutomationGUI:
         if lojas:
             for loja_info in lojas:
                 var = tk.BooleanVar()
+                # AQUI É A MUDANÇA PRINCIPAL
+                texto_checkbox = f"{loja_info['loja_numero']} - {loja_info['fantasia']} ({loja_info['cnpj']}) - Lançamentos: {loja_info['lancamentos']}"
                 chk = ttk.Checkbutton(self.scrollable_frame, 
-                                      text=f"{loja_info['loja_numero']} - {loja_info['fantasia']} ({loja_info['cnpj']})",
+                                      text=texto_checkbox,
                                       variable=var)
                 chk.pack(anchor='w', padx=5)
                 self.check_vars.append((var, chk, loja_info))

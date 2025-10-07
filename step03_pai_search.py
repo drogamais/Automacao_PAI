@@ -14,8 +14,8 @@ def stoppable_sleep(duration, gui_callback):
 
 def executar_busca_lojas(driver, wait, ano_alvo, gui_callback):
     """
-    Navega até a tela de efetividade, filtra e extrai os CNPJs das lojas com lançamentos.
-    Retorna uma lista de CNPJs.
+    Navega até a tela de efetividade, filtra e extrai os CNPJs e a contagem de lançamentos das lojas.
+    Retorna uma lista de dicionários, cada um contendo o CNPJ e o número de lançamentos.
     """
     try:
         print("Aguardando a página principal do PAI carregar completamente...")
@@ -56,7 +56,7 @@ def executar_busca_lojas(driver, wait, ano_alvo, gui_callback):
 
         gui_callback.atualizar_progresso(75, 100, "Extraindo dados da tabela...", is_search=True)
         
-        cnpjs_com_lancamento = []
+        lojas_com_lancamentos = []
         linhas_tabela = driver.find_elements(By.XPATH, "//tbody/tr")
         
         if not linhas_tabela:
@@ -72,18 +72,18 @@ def executar_busca_lojas(driver, wait, ano_alvo, gui_callback):
             if len(celulas) < 14:
                 continue
 
-            # A primeira célula contém o CNPJ
             cnpj = celulas[0].text.strip()
+            lancamentos = 0
+            # Verifica as colunas dos meses (índices 2 a 13)
+            for i in range(2, 14):
+                if celulas[i].text.strip():
+                    lancamentos += 1
             
-            for i in range(2, 14): # Verifica as colunas dos meses (índices 2 a 13)
-                texto_celula = celulas[i].text.strip()
-                if texto_celula:
-                    if cnpj not in cnpjs_com_lancamento:
-                        cnpjs_com_lancamento.append(cnpj)
-                    break 
+            if lancamentos > 0:
+                lojas_com_lancamentos.append({'cnpj': cnpj, 'lancamentos': lancamentos})
 
         gui_callback.atualizar_progresso(100, 100, "Busca finalizada!", is_search=True)
-        return cnpjs_com_lancamento
+        return lojas_com_lancamentos
 
     except InterruptedError as e:
         print(f"Busca interrompida pelo usuário: {e}")

@@ -235,12 +235,28 @@ def executar_workflow_busca(ano_alvo, gui_callback, debug_mode, results_callback
         step01_login_actions.login_e_navega_para_pai(driver, wait, gui_callback)
         
         if gui_callback.stop_requested: raise InterruptedError("Parada solicitada.")
-        cnpjs_encontrados = step03_pai_search.executar_busca_lojas(driver, wait, ano_alvo, gui_callback)
+        lojas_encontradas = step03_pai_search.executar_busca_lojas(driver, wait, ano_alvo, gui_callback)
         
-        gui_callback.atualizar_progresso(90, 100, "Buscando dados das lojas no banco...", is_search=True)
-        lojas_info = buscar_lojas_por_cnpjs(cnpjs_encontrados)
+        if lojas_encontradas:
+            cnpjs_apenas = [loja['cnpj'] for loja in lojas_encontradas]
+            gui_callback.atualizar_progresso(90, 100, "Buscando dados das lojas no banco...", is_search=True)
+            lojas_info_db = buscar_lojas_por_cnpjs(cnpjs_apenas)
+            
+            # Cria um dicionário para busca rápida das informações do banco
+            db_info_map = {loja['cnpj']: loja for loja in lojas_info_db}
 
-        results_callback(lojas_info)
+            # Combina as informações mantendo a ordem original de 'lojas_encontradas'
+            lojas_info_final = []
+            for loja_encontrada in lojas_encontradas:
+                cnpj = loja_encontrada['cnpj']
+                if cnpj in db_info_map:
+                    # Une os dicionários, mantendo a ordem da lista original
+                    loja_info_completa = {**db_info_map[cnpj], **loja_encontrada}
+                    lojas_info_final.append(loja_info_completa)
+            
+            results_callback(lojas_info_final)
+        else:
+            results_callback([]) # Envia lista vazia se nada for encontrado
         
         if not gui_callback.stop_requested:
             gui_callback.finalizar_automacao(sucesso=True, is_search=True)
@@ -255,6 +271,7 @@ def executar_workflow_busca(ano_alvo, gui_callback, debug_mode, results_callback
     finally:
         if driver:
             driver.quit()
+
 
 # --- NOVO WORKFLOW PARA EXECUÇÃO EM LOTE ---
 def executar_workflow_em_lote(lojas_selecionadas, ano_alvo, mes_inicial, mes_final, gui_callback, debug_mode):
