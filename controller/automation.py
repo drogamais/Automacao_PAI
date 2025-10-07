@@ -1,0 +1,149 @@
+# Arquivo: controller/automation.py
+from selenium.webdriver.support.ui import WebDriverWait
+
+# Importa as etapas e os processadores
+import step01_login_actions
+import step02_pai_actions
+import step02_pai_evolution
+import step03_pai_search
+import processar_financeiro
+import processar_performance
+import processar_evolucao_financeiro
+import processar_evolucao_performance
+
+# Importa os utilitários
+from utils import database, system, webdriver
+
+# --- WORKFLOWS ---
+def executar_workflow_completo(loja_numero, ano_alvo, mes_inicial, mes_final, gui_callback, debug_mode):
+    driver = None
+    try:
+        system.limpar_pasta_downloads()
+        gui_callback.atualizar_progresso(0, 100, f"Buscando CNPJ para a loja {loja_numero}...")
+        cnpj_selecionado = database.buscar_cnpj_no_banco(loja_numero)
+        if not cnpj_selecionado:
+            raise ValueError(f"Loja {loja_numero} não encontrada no banco de dados.")
+        
+        gui_callback.atualizar_progresso(0, 100, f"CNPJ {cnpj_selecionado} encontrado. Iniciando navegador...")
+        driver = webdriver.setup_driver(debug_mode)
+        wait = WebDriverWait(driver, 60)
+        
+        if gui_callback.stop_requested: raise InterruptedError("Parada solicitada.")
+        gui_callback.atualizar_progresso(0, 100, "Realizando login...")
+        step01_login_actions.login_e_navega_para_pai(driver, wait, gui_callback)
+        
+        if gui_callback.stop_requested: raise InterruptedError("Parada solicitada.")
+        step02_pai_actions.executar_acoes_pai(driver, wait, cnpj_selecionado, ano_alvo, mes_inicial, mes_final, gui_callback)
+        
+        if driver: driver.quit()
+        driver = None
+
+        if gui_callback.stop_requested: raise InterruptedError("Parada solicitada.")
+        gui_callback.atualizar_progresso(50, 100, "Processando planilhas...")
+        processar_financeiro.main()
+        processar_performance.main()
+        
+    finally:
+        if driver:
+            driver.quit()
+
+def executar_workflow_evolucao(loja_numero, ano_alvo, mes_inicial, mes_final, gui_callback, debug_mode):
+    driver = None
+    try:
+        gui_callback.atualizar_progresso(0, 100, "Verificando conexão com a internet...")
+        if not system.check_internet_connection():
+            raise ConnectionError("Sem conexão com a internet.")
+            
+        system.fechar_processos_excel()
+        system.limpar_pasta_downloads()
+        gui_callback.atualizar_progresso(0, 100, f"Buscando CNPJ para a loja {loja_numero}...")
+        cnpj_selecionado = database.buscar_cnpj_no_banco(loja_numero)
+        if not cnpj_selecionado:
+            raise ValueError(f"Loja {loja_numero} não encontrada.")
+
+        gui_callback.atualizar_progresso(0, 100, f"CNPJ {cnpj_selecionado} encontrado. Iniciando navegador...")
+        driver = webdriver.setup_driver(debug_mode)
+        wait = WebDriverWait(driver, 60)
+        
+        if gui_callback.stop_requested: raise InterruptedError("Parada solicitada.")
+        gui_callback.atualizar_progresso(0, 100, "Realizando login...")
+        step01_login_actions.login_e_navega_para_pai(driver, wait, gui_callback)
+        
+        if gui_callback.stop_requested: raise InterruptedError("Parada solicitada.")
+        step02_pai_evolution.executar_evolution_actions(driver, wait, cnpj_selecionado, ano_alvo, mes_inicial, mes_final, gui_callback)
+        
+        if driver: driver.quit()
+
+        if gui_callback.stop_requested: raise InterruptedError("Parada solicitada.")
+        gui_callback.atualizar_progresso(0, 100, "Processando Evolução Financeira...")
+        processar_evolucao_financeiro.main()
+
+        if gui_callback.stop_requested: raise InterruptedError("Parada solicitada.")
+        gui_callback.atualizar_progresso(50, 100, "Processando Evolução de Performance...")
+        processar_evolucao_performance.main()
+        
+    finally:
+        if driver:
+            driver.quit()
+
+# A assinatura desta função foi corrigida para ter 'debug_mode' como último argumento
+def executar_workflow_busca(ano_alvo, gui_callback, results_callback, debug_mode):
+    driver = None
+    try:
+        gui_callback.atualizar_progresso(0, 100, "Verificando conexão...", is_search=True)
+        if not system.check_internet_connection():
+            raise ConnectionError("Sem conexão com a internet.")
+
+        gui_callback.atualizar_progresso(5, 100, "Iniciando navegador...", is_search=True)
+        driver = webdriver.setup_driver(debug_mode)
+        wait = WebDriverWait(driver, 60)
+        
+        if gui_callback.stop_requested: raise InterruptedError("Parada solicitada.")
+        gui_callback.atualizar_progresso(10, 100, "Realizando login...", is_search=True)
+        step01_login_actions.login_e_navega_para_pai(driver, wait, gui_callback)
+        
+        if gui_callback.stop_requested: raise InterruptedError("Parada solicitada.")
+        lojas_encontradas = step03_pai_search.executar_busca_lojas(driver, wait, ano_alvo, gui_callback)
+        
+        if lojas_encontradas:
+            cnpjs_apenas = [loja['cnpj'] for loja in lojas_encontradas]
+            gui_callback.atualizar_progresso(90, 100, "Buscando dados das lojas no banco...", is_search=True)
+            lojas_info_db = database.buscar_lojas_por_cnpjs(cnpjs_apenas)
+            
+            db_info_map = {loja['cnpj']: loja for loja in lojas_info_db}
+            lojas_info_final = []
+            for loja_encontrada in lojas_encontradas:
+                cnpj = loja_encontrada['cnpj']
+                if cnpj in db_info_map:
+                    loja_info_completa = {**db_info_map[cnpj], **loja_encontrada}
+                    lojas_info_final.append(loja_info_completa)
+            
+            results_callback(lojas_info_final)
+        else:
+            results_callback([])
+            
+    finally:
+        if driver:
+            driver.quit()
+
+def executar_workflow_em_lote(lojas_selecionadas, ano_alvo, mes_inicial, mes_final, gui_callback, debug_mode):
+    total_lojas = len(lojas_selecionadas)
+    gui_callback.atualizar_progresso(0, total_lojas, f"Iniciando automação em lote para {total_lojas} lojas.")
+    
+    for i, (chk_widget, loja_info) in enumerate(lojas_selecionadas):
+        loja_numero = loja_info['loja_numero']
+        if gui_callback.stop_requested:
+            gui_callback.finalizar_automacao(sucesso=False, mensagem="Processo em lote interrompido.")
+            return
+
+        gui_callback.atualizar_progresso(i, total_lojas, f"Processando loja {i+1}/{total_lojas}: {loja_numero} - {loja_info['fantasia']}")
+        
+        try:
+            executar_workflow_completo(str(loja_numero), ano_alvo, mes_inicial, mes_final, gui_callback, debug_mode)
+            gui_callback.marcar_loja_como_concluida(chk_widget)
+        except Exception as e:
+            print(f"Erro ao processar a loja {loja_numero}: {e}")
+            continue
+            
+    if not gui_callback.stop_requested:
+        gui_callback.atualizar_progresso(total_lojas, total_lojas, "Automação em lote finalizada.")
