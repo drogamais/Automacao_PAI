@@ -1,5 +1,6 @@
 # Arquivo: scraping/relatorios.py
 import os
+import re
 import time
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -62,7 +63,10 @@ def executar_acoes_pai(driver, wait, cnpj_alvo, ano_alvo, mes_inicial, mes_final
     pasta_downloads = os.path.join(project_root, "downloads")
 
     try:
-        def aplicar_filtros_completos():
+        def aplicar_filtros_e_contar():
+            driver.get("https://pai.febrafar.com.br/#!/avaliacao")
+            stoppable_sleep(3, gui_callback)
+
             wait.until(EC.element_to_be_clickable((By.XPATH, "//a[contains(., 'Avaliação')]"))).click(); stoppable_sleep(2, gui_callback)
             wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Loja')]"))).click(); stoppable_sleep(1, gui_callback)
             wait.until(EC.element_to_be_clickable((By.XPATH, "//div[contains(@class, 'combobox') and .//span[text()='Selecione...']]"))).click(); stoppable_sleep(1, gui_callback)
@@ -74,38 +78,33 @@ def executar_acoes_pai(driver, wait, cnpj_alvo, ano_alvo, mes_inicial, mes_final
 
             wait.until(EC.element_to_be_clickable((By.XPATH, f"//div[contains(@class, 'list-item') and contains(text(), '{cnpj_alvo}')]"))).click(); stoppable_sleep(1, gui_callback)
             
-            # --- CORREÇÃO APLICADA AQUI ---
             wait.until(EC.element_to_be_clickable((By.XPATH, "//div[contains(@class, 'combobox') and .//span[text()='Período inicial...']]"))).click(); stoppable_sleep(1, gui_callback)
-            _selecionar_ano(driver, wait, ano_alvo, gui_callback) # Garante que o ano correto seja selecionado
+            _selecionar_ano(driver, wait, ano_alvo, gui_callback)
             wait.until(EC.element_to_be_clickable((By.XPATH, f"//li[normalize-space()='{mes_inicial}']"))).click()
             
             wait.until(EC.element_to_be_clickable((By.XPATH, "//div[contains(@class, 'combobox') and .//span[text()='Período final...']]"))).click(); stoppable_sleep(1, gui_callback)
-            _selecionar_ano(driver, wait, ano_alvo, gui_callback) # Garante que o ano correto seja selecionado
+            _selecionar_ano(driver, wait, ano_alvo, gui_callback)
             wait.until(EC.element_to_be_clickable((By.XPATH, f"//li[normalize-space()='{mes_final}']"))).click()
             
             wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Aplicar filtros')]"))).click()
-            stoppable_sleep(3, gui_callback)
+            stoppable_sleep(5, gui_callback)
 
-        gui_callback.atualizar_progresso(0, 100, "Filtrando para contar relatórios...")
-        aplicar_filtros_completos()
-        
-        # O restante do código permanece o mesmo...
-        seletor_botoes_consulta = (By.XPATH, "//button[@tooltip='Consultar Lançamentos']")
-        todos_os_botoes = driver.find_elements(*seletor_botoes_consulta)
-        numero_de_relatorios = len(todos_os_botoes)
-
-        # Lógica para contar relatórios em todas as páginas
-        while True:
+            # --- NOVA LÓGICA DE CONTAGEM ---
             try:
-                seletor_proximo = (By.XPATH, "//li[contains(@class, 'pagination-next') and not(contains(@class, 'disabled'))]/a")
-                botao_proximo = driver.find_element(By.XPATH, seletor_proximo)
-                botao_proximo.click()
-                stoppable_sleep(3, gui_callback)
-                botoes_pagina_seguinte = driver.find_elements(*seletor_botoes_consulta)
-                numero_de_relatorios += len(botoes_pagina_seguinte)
-            except (NoSuchElementException, TimeoutException):
-                break # Sai do loop quando não há mais botão "Próximo"
+                info_element = wait.until(EC.visibility_of_element_located((By.XPATH, "//div[contains(@class, 'info mr-3 my-1')]/span")))
+                info_text = info_element.text
+                # Extrai o último número do texto "Exibindo registros de 1 até 10 de 11 registros encontrados."
+                match = re.search(r'de (\d+) registros encontrados', info_text)
+                if match:
+                    return int(match.group(1))
+                else:
+                    # Se o padrão não corresponder, conta os elementos na página como um fallback
+                    return len(driver.find_elements(By.XPATH, "//button[@tooltip='Consultar Lançamentos']"))
+            except (TimeoutException, NoSuchElementException):
+                print("Nenhum registro encontrado.")
+                return 0
 
+        numero_de_relatorios = aplicar_filtros_e_contar()
         print(f"Contagem finalizada. Total de {numero_de_relatorios} relatórios para o período.")
         
         if numero_de_relatorios == 0:
@@ -114,8 +113,7 @@ def executar_acoes_pai(driver, wait, cnpj_alvo, ano_alvo, mes_inicial, mes_final
 
         gui_callback.atualizar_progresso(0, numero_de_relatorios, f"Encontrados {numero_de_relatorios} relatórios. Iniciando downloads...")
         
-        # Volta para a primeira página para começar o processo
-        aplicar_filtros_completos()
+        pagina_atual = -1
 
         for i in range(numero_de_relatorios):
             if gui_callback.stop_requested:
@@ -125,19 +123,25 @@ def executar_acoes_pai(driver, wait, cnpj_alvo, ano_alvo, mes_inicial, mes_final
             
             try:
                 pagina_alvo = i // 10
-                pagina_atual = 0 # Assume que sempre começamos na página 1 (índice 0)
-
-                # Navega para a página correta
-                if pagina_alvo > 0:
-                    aplicar_filtros_completos() # Garante que estamos no início
+                
+                # Se o relatório não está na página atual, navega para a página correta
+                if pagina_alvo != pagina_atual:
+                    print(f"Relatório {i + 1} está na página {pagina_alvo + 1}. Navegando...")
+                    aplicar_filtros_e_contar() # Volta para a primeira página
                     for page_click in range(pagina_alvo):
                         seletor_proximo = (By.XPATH, "//li[contains(@class, 'pagination-next') and not(contains(@class, 'disabled'))]/a")
                         botao_proximo = wait.until(EC.element_to_be_clickable(seletor_proximo))
                         botao_proximo.click()
                         stoppable_sleep(3, gui_callback)
+                    pagina_atual = pagina_alvo
 
                 index_na_pagina = i % 10
+                seletor_botoes_consulta = (By.XPATH, "//button[@tooltip='Consultar Lançamentos']")
                 botoes_consulta_atualizados = wait.until(EC.presence_of_all_elements_located(seletor_botoes_consulta))
+                
+                if index_na_pagina >= len(botoes_consulta_atualizados):
+                    raise IndexError(f"Erro de índice: Tentando acessar o relatório {index_na_pagina + 1} na página, mas apenas {len(botoes_consulta_atualizados)} foram encontrados.")
+
                 botoes_consulta_atualizados[index_na_pagina].click()
                 
                 print("Aguardando carregamento da página do relatório...")
@@ -148,9 +152,7 @@ def executar_acoes_pai(driver, wait, cnpj_alvo, ano_alvo, mes_inicial, mes_final
 
                 if status_text == "APROVADO":
                     print(f"Relatório {i + 1} está APROVADO. Baixando...")
-                    
                     system.limpar_pasta_downloads()
-
                     stoppable_sleep(20, gui_callback)
                     wait.until(EC.element_to_be_clickable((By.XPATH, "//a[contains(., ' Gerar Excel')]"))).click()
                     print("Download iniciado. Aguardando conclusão...")
@@ -161,7 +163,7 @@ def executar_acoes_pai(driver, wait, cnpj_alvo, ano_alvo, mes_inicial, mes_final
                     while time.time() - start_time < time_limit:
                         downloaded_files = _get_downloaded_files(pasta_downloads)
                         if downloaded_files:
-                            stoppable_sleep(10, gui_callback)
+                            stoppable_sleep(5, gui_callback)
                             downloaded_files = _get_downloaded_files(pasta_downloads)
                             break
                         stoppable_sleep(5, gui_callback)
@@ -185,17 +187,16 @@ def executar_acoes_pai(driver, wait, cnpj_alvo, ano_alvo, mes_inicial, mes_final
                 
                 gui_callback.atualizar_progresso(i + 1, numero_de_relatorios, f"Relatório {i + 1}/{numero_de_relatorios} verificado.")
                 
-                # A lógica de voltar à página principal é tratada pelo aplicar_filtros_completos no início do loop
-                driver.get("https://pai.febrafar.com.br/#!/avaliacao")
+                # Após processar um item, é preciso voltar para a lista para o próximo
+                driver.back()
                 stoppable_sleep(3, gui_callback)
-
+                
             except Exception as e_loop:
                 print(f"Erro ao processar o relatório {i + 1}: {e_loop}")
                 gui_callback.atualizar_progresso(i + 1, numero_de_relatorios, f"Erro no relatório {i + 1}. Pulando...")
-                try:
-                    driver.get("https://pai.febrafar.com.br/#!/avaliacao")
-                except:
-                    pass
+                # Força o retorno para a página de avaliação para tentar o próximo
+                driver.get("https://pai.febrafar.com.br/#!/avaliacao")
+                pagina_atual = -1 # Reseta o contador da página
                 continue
         
         print("\nProcesso de scraping finalizado.")
