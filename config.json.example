@@ -1,0 +1,13 @@
+{
+  "login": {
+    "usuario": "Usuario_PAI",
+    "senha": "Senha_PAI"
+  },
+  "database": {
+    "user": "usuario_banco",
+    "password": "senha_banco",
+    "host": "host_banco",
+    "port": 3306,
+    "database": "database_usado"
+  }
+}
