@@ -1,3 +1,4 @@
+# Arquivo: processing/performance.py
 import os
 import re
 import pandas as pd
@@ -19,15 +20,12 @@ LINHAS_PARA_EXTRAIR = [
 ]
 
 COLUNA_INDICADORES = 'C'
-# <--- NOTA: Estes nomes de colunas referem-se ao Excel, então estão corretos ---
 COLUNA_VALOR_LOJA = 'D'
 COLUNA_MEDIA_LOJA = 'E'
 COLUNA_MEDIA_FAIXA = 'F'
 COLUNA_MEDIA_FEBRAFAR = 'G'
 
-# --- FUNÇÃO AUXILIAR ---
 def limpar_valor(valor_str):
-    """Converte uma string formatada ('1.234,56' ou '82,18') para um número float."""
     if valor_str is None or str(valor_str).strip() == '': return None
     try:
         valor_limpo = str(valor_str).replace('.', '').replace(',', '.')
@@ -36,10 +34,10 @@ def limpar_valor(valor_str):
         return None
 
 def extrair_dados_do_excel(caminho_arquivo, lojas_map):
+    # (Esta função permanece inalterada)
     print(f"Lendo arquivo: {os.path.basename(caminho_arquivo)}...")
     nome_arquivo = os.path.basename(caminho_arquivo)
     
-    # <--- LINHA CORRIGIDA ---
     match = re.search(r'-\s*(\d+)\s*-.*-\s+(\d+-\d+)\.', nome_arquivo)
     if not match:
         print(f"AVISO: O arquivo '{nome_arquivo}' não corresponde ao padrão de nome esperado. Pulando...")
@@ -92,87 +90,75 @@ def extrair_dados_do_excel(caminho_arquivo, lojas_map):
 
     return pd.DataFrame(dados_extraidos).dropna(subset=['metrica_geral'])
 
+
+# --- NOVA FUNÇÃO ---
+def processar_arquivo(caminho_arquivo, lojas_map, conn):
+    """Processa um único arquivo Excel de performance e insere os dados no banco."""
+    cursor = conn.cursor()
+    df_arquivo = extrair_dados_do_excel(caminho_arquivo, lojas_map)
+    
+    if df_arquivo is None or df_arquivo.empty:
+        print(f"Nenhum dado extraído de {os.path.basename(caminho_arquivo)}.")
+        return
+
+    ordem_colunas_db = [
+        'loja_numero', 'loja_nome', 'data_ref', 'indicador_nome', 
+        'unidade_medida', 'metrica_geral', 'metrica_media_loja_6m', 
+        'metrica_media_faixa_faturamento_6m', 'metrica_media_febrafar_6m'
+    ]
+    df_arquivo = df_arquivo[ordem_colunas_db]
+    df_arquivo = df_arquivo.replace({np.nan: None})
+
+    sql_insert = f"""
+        INSERT INTO {TABLE_NAME} (
+            loja_numero, loja_nome, data_ref, indicador_nome, unidade_medida,
+            metrica_geral, metrica_media_loja_6m, metrica_media_faixa_faturamento_6m, metrica_media_febrafar_6m
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+            loja_nome=VALUES(loja_nome), unidade_medida=VALUES(unidade_medida),
+            metrica_geral=VALUES(metrica_geral), metrica_media_loja_6m=VALUES(metrica_media_loja_6m),
+            metrica_media_faixa_faturamento_6m=VALUES(metrica_media_faixa_faturamento_6m),
+            metrica_media_febrafar_6m=VALUES(metrica_media_febrafar_6m)
+    """
+    
+    dados_para_inserir = [tuple(row) for row in df_arquivo.to_numpy()]
+    
+    try:
+        cursor.executemany(sql_insert, dados_para_inserir)
+        conn.commit()
+        print(f"  -> SUCESSO! {cursor.rowcount} registros de {os.path.basename(caminho_arquivo)} inseridos/atualizados.")
+    except mariadb.Error as e:
+        print(f"  -> ERRO ao inserir dados de {os.path.basename(caminho_arquivo)}: {e}")
+        conn.rollback()
+
 def main():
+    # Esta função agora processa todos os arquivos na pasta, útil para execuções manuais ou de recuperação
     conn = None
     try:
         print("\n--- INICIANDO PROCESSAMENTO DE DADOS DE PERFORMANCE ---")
         conn = mariadb.connect(**DB_CONFIG)
-        cursor = conn.cursor()
-
+        
         print("Carregando lojas...")
+        cursor = conn.cursor()
         cursor.execute("SELECT loja_numero, fantasia FROM bronze_lojas")
         lojas_map = {int(numero): nome for numero, nome in cursor.fetchall() if numero is not None}
-        print(f"{len(lojas_map)} lojas válidas carregadas com sucesso.")
 
-        todos_os_dados = []
-        arquivos_excel = [f for f in os.listdir(PASTA_DOS_ARQUIVOS_EXCEL) if f.endswith('.xlsx') and "performance" in f.lower() and not f.startswith('~$')]
+        arquivos_excel = [f for f in os.listdir(PASTA_DOS_ARQUIVOS_EXCEL) if f.endswith('.xlsx') and "performance" in f.lower() and not f.startswith('~$') and "financeiro" not in f.lower()]
         if not arquivos_excel:
-            print(f"Nenhum arquivo Excel (.xlsx) encontrado na pasta: '{PASTA_DOS_ARQUIVOS_EXCEL}'")
-        else:
-            for arquivo in arquivos_excel:
-                # Ignora qualquer arquivo que contenha "financeiro" no nome
-                if "financeiro" in arquivo.lower():
-                    print(f"INFO: Ignorando arquivo de Financeiro: {arquivo}")
-                    continue
-                
+            print(f"Nenhum arquivo Excel de performance encontrado em '{PASTA_DOS_ARQUIVOS_EXCEL}'")
+            return
 
-                caminho_completo = os.path.join(PASTA_DOS_ARQUIVOS_EXCEL, arquivo)
-                df_arquivo_atual = extrair_dados_do_excel(caminho_completo, lojas_map)
-                if df_arquivo_atual is not None and not df_arquivo_atual.empty:
-                    todos_os_dados.append(df_arquivo_atual)
-        
-        if not todos_os_dados:
-            print("\nNenhum dado de Performance válido foi extraído dos arquivos.")
-        else:
-            df_final_completo = pd.concat(todos_os_dados, ignore_index=True)
-            
-            ordem_colunas_db = [
-                'loja_numero', 'loja_nome', 'data_ref', 'indicador_nome', 
-                'unidade_medida', 'metrica_geral', 'metrica_media_loja_6m', 
-                'metrica_media_faixa_faturamento_6m', 'metrica_media_febrafar_6m'
-            ]
-            df_final_completo = df_final_completo[ordem_colunas_db]
-            df_final_completo = df_final_completo.replace({np.nan: None})
-
-            sql_insert = f"""
-                INSERT INTO {TABLE_NAME} (
-                    loja_numero, loja_nome, data_ref, indicador_nome, unidade_medida,
-                    metrica_geral, metrica_media_loja_6m, metrica_media_faixa_faturamento_6m, metrica_media_febrafar_6m
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE
-                    loja_nome=VALUES(loja_nome),
-                    unidade_medida=VALUES(unidade_medida),
-                    metrica_geral=VALUES(metrica_geral),
-                    metrica_media_loja_6m=VALUES(metrica_media_loja_6m),
-                    metrica_media_faixa_faturamento_6m=VALUES(metrica_media_faixa_faturamento_6m),
-                    metrica_media_febrafar_6m=VALUES(metrica_media_febrafar_6m)
-            """
-            
-            dados_para_inserir = [tuple(row) for row in df_final_completo.to_numpy()]
-            tamanho_lote = 100
-            total_registros = len(dados_para_inserir)
-
-            print(f"\nIniciando inserção/atualização de {total_registros} registros de Performance em lotes de {tamanho_lote}...")
-
-            # O try/except foi removido daqui para simplificar conforme o código base que você enviou
-            for i in range(0, total_registros, tamanho_lote):
-                lote_atual = dados_para_inserir[i:i + tamanho_lote]
-                cursor.executemany(sql_insert, lote_atual)
-                conn.commit()
-                print(f"  -> Lote de {len(lote_atual)} registros processado.")
-
-            print(f"SUCESSO! Operação de Performance concluída na tabela '{TABLE_NAME}'.")
+        for arquivo in arquivos_excel:
+            caminho_completo = os.path.join(PASTA_DOS_ARQUIVOS_EXCEL, arquivo)
+            processar_arquivo(caminho_completo, lojas_map, conn)
 
     except mariadb.Error as e:
-        print(f"ERRO: {e}")
+        print(f"ERRO de banco de dados no main: {e}")
         if conn and conn.open: conn.rollback()
-        # sys.exit(1) # Removido para não parar o fluxo principal (run.py)
     finally:
         if conn and conn.open:
             conn.close()
             print("Conexão com o banco de dados fechada.")
-        print("--- PROCESSAMENTO DE PERFORMANCE FINALIZADO ---\n")
-
 
 if __name__ == "__main__":
     main()
