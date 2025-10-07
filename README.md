@@ -92,21 +92,25 @@ Pode compilar a aplicação num executável (`.exe`) para facilitar a distribui�
 
 1.  **Ícone:** Certifique-se de que o ícone `icone.ico` está dentro da pasta `assets/`.
 2.  **Execute o PyInstaller:** No terminal (com o ambiente virtual ativado), execute o comando:
+
     ```bash
-    pyinstaller --name "Automacao PAI" --windowed --icon="assets/icone.ico" main.py
+    pyinstaller --name "Automacao PAI" --windowed --icon="assets/icone.ico" --add-data "config.json:." main.py
     ```
+
 3.  **Encontre o Executável:** Após a compilação, uma nova pasta `dist` será criada. Dentro dela, encontrará a pasta `Automacao PAI`. O seu programa pronto para uso é o `Automacao PAI.exe` que está dentro desta pasta. Para partilhar, basta compactar a pasta `Automacao PAI` inteira e enviá-la.
 
 ## 📂 Estrutura do Projeto
 
 A estrutura de pastas foi organizada para separar as responsabilidades:
 
--   **`/assets`**: Contém recursos estáticos, como o ícone da aplicação.
--   **`/controller`**: Orquestra a lógica da aplicação (os workflows que unem scraping e processamento).
--   **`/processing`**: Módulos responsáveis por processar os dados dos ficheiros Excel baixados.
--   **`/scraping`**: Módulos dedicados à automação web com Selenium para navegar e baixar os relatórios.
--   **`/utils`**: Funções de utilidade reutilizáveis (conexão com DB, gestão de configurações, etc.).
--   **`/view`**: Contém toda a lógica e construção da interface gráfica do usuário (GUI).
--   **`main.py`**: Ponto de entrada que inicia a aplicação.
--   **`config.json.example`**: Ficheiro de modelo para as credenciais.
--   **`requirements.txt`**: Lista de todas as dependências Python para o projeto.
+```bash
+    ├── assets/             # Recursos estáticos, como o ícone da aplicação.
+    ├── controller/         # Orquestra a lógica da aplicação (workflows).
+    ├── processing/         # Módulos para processar os dados dos arquivos Excel.
+    ├── scraping/           # Módulos para automação web com Selenium.
+    ├── utils/              # Funções de utilidade (conexão com DB, config, etc.).
+    ├── view/               # Módulos da interface gráfica (GUI).
+    ├── config.json.example # Arquivo de exemplo para as credenciais.
+    ├── main.py             # Ponto de entrada da aplicação.
+    └── requirements.txt    # Lista de dependências Python.
+```
