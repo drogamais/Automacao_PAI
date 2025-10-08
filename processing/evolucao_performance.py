@@ -88,16 +88,22 @@ def extrair_dados_do_excel(caminho_arquivo, lojas_map):
 
 def main():
     conn = None
+    lojas_map = {}
     try:
         print("\n--- INICIANDO PROCESSAMENTO DE DADOS DE EVOLUÇÃO DE PERFORMANCE ---")
-        conn = mariadb.connect(**DB_CONFIG)
-        cursor = conn.cursor()
-
+        
+        # Etapa 1: Carregar mapa de lojas com conexão de curta duração
         print("Carregando lojas...")
-        cursor.execute("SELECT loja_numero, fantasia FROM bronze_lojas")
-        lojas_map = {int(numero): nome for numero, nome in cursor.fetchall() if numero is not None}
+        connect_args = DB_CONFIG.copy()
+        connect_args['reconnect'] = True # Mantém a reconexão por segurança
+
+        with mariadb.connect(**connect_args) as temp_conn:
+            cursor = temp_conn.cursor()
+            cursor.execute("SELECT loja_numero, fantasia FROM bronze_lojas")
+            lojas_map = {int(numero): nome for numero, nome in cursor.fetchall() if numero is not None}
         print(f"{len(lojas_map)} lojas válidas carregadas com sucesso.")
 
+        # Etapa 2: Ler e processar todos os arquivos Excel em memória
         arquivos_excel = [
             f for f in os.listdir(PASTA_DOS_ARQUIVOS_EXCEL) 
             if f.endswith('.xlsx') and 'evolução' in f.lower() and 'performance' in f.lower() and not f.startswith('~$')
@@ -116,51 +122,54 @@ def main():
         
         if not todos_os_dados:
             print("\nNenhum dado de Performance válido foi extraído dos arquivos.")
-        else:
-            df_final_completo = pd.concat(todos_os_dados, ignore_index=True)
-            df_final_completo = df_final_completo.replace({np.nan: None})
+            return
+            
+        df_final_completo = pd.concat(todos_os_dados, ignore_index=True)
+        df_final_completo = df_final_completo.replace({np.nan: None})
 
-            # Adiciona colunas vazias para manter a compatibilidade
-            df_final_completo['metrica_media_loja_6m'] = None
-            df_final_completo['metrica_media_faixa_faturamento_6m'] = None
-            df_final_completo['metrica_media_febrafar_6m'] = None
-            
-            sql_insert = f"""
-                INSERT INTO {TABLE_NAME} (
-                    loja_numero, loja_nome, data_ref, indicador_nome, unidade_medida,
-                    metrica_geral, metrica_media_loja_6m, metrica_media_faixa_faturamento_6m, metrica_media_febrafar_6m
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE
-                    loja_nome=VALUES(loja_nome),
-                    unidade_medida=VALUES(unidade_medida),
-                    metrica_geral=VALUES(metrica_geral)
-            """
-            
-            dados_para_inserir = [tuple(row) for row in df_final_completo.to_numpy()]
-            
-            # --- LÓGICA DE BATCH APLICADA AQUI ---
-            tamanho_lote = 100
-            total_registros = len(dados_para_inserir)
+        # Adiciona colunas vazias
+        df_final_completo['metrica_media_loja_6m'] = None
+        df_final_completo['metrica_media_faixa_faturamento_6m'] = None
+        df_final_completo['metrica_media_febrafar_6m'] = None
+        
+        sql_insert = f"""
+            INSERT INTO {TABLE_NAME} (
+                loja_numero, loja_nome, data_ref, indicador_nome, unidade_medida,
+                metrica_geral, metrica_media_loja_6m, metrica_media_faixa_faturamento_6m, metrica_media_febrafar_6m
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE
+                loja_nome=VALUES(loja_nome),
+                unidade_medida=VALUES(unidade_medida),
+                metrica_geral=VALUES(metrica_geral)
+        """
+        
+        dados_para_inserir = [tuple(row) for row in df_final_completo.to_numpy()]
+        
+        # Etapa 3: Abrir nova conexão apenas para a inserção dos dados
+        conn = mariadb.connect(**connect_args)
+        cursor = conn.cursor()
 
-            print(f"\nIniciando inserção/atualização de {total_registros} registros de evolução de performance em lotes de {tamanho_lote}...")
-            
-            registros_processados = 0
-            for i in range(0, total_registros, tamanho_lote):
-                lote_atual = dados_para_inserir[i:i + tamanho_lote]
-                cursor.executemany(sql_insert, lote_atual)
-                conn.commit()
-                registros_processados += len(lote_atual)
-                print(f"  -> Lote de {len(lote_atual)} registros processado. Total: {registros_processados}/{total_registros}")
+        tamanho_lote = 100
+        total_registros = len(dados_para_inserir)
 
-            print(f"SUCESSO! Operação concluída na tabela '{TABLE_NAME}'.")
+        print(f"\nIniciando inserção/atualização de {total_registros} registros de evolução de performance em lotes de {tamanho_lote}...")
+        
+        registros_processados = 0
+        for i in range(0, total_registros, tamanho_lote):
+            lote_atual = dados_para_inserir[i:i + tamanho_lote]
+            cursor.executemany(sql_insert, lote_atual)
+            conn.commit()
+            registros_processados += len(lote_atual)
+            print(f"  -> Lote de {len(lote_atual)} registros processado. Total: {registros_processados}/{total_registros}")
+
+        print(f"SUCESSO! Operação concluída na tabela '{TABLE_NAME}'.")
 
     except mariadb.Error as e:
         print(f"ERRO de banco de dados: {e}")
         if conn: conn.rollback()
-        # Lança a exceção para que o controller saiba que algo deu errado
         raise e
     finally:
-        if conn:
+        if conn and conn.open:
             conn.close()
             print("Conexão com o banco de dados fechada.")
         print("--- PROCESSAMENTO DE EVOLUÇÃO DE PERFORMANCE FINALIZADO ---\n")

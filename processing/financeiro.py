@@ -112,9 +112,11 @@ def extrair_dados_do_excel(caminho_arquivo, lojas_map):
         
     return pd.DataFrame(dados_extraidos).dropna(subset=['valor_geral'])
 
-def processar_arquivo(caminho_arquivo, lojas_map, conn):
+def processar_arquivo(caminho_arquivo, lojas_map):
     """Processa um único arquivo Excel e insere os dados no banco."""
+    conn = None
     try:
+        conn = mariadb.connect(**DB_CONFIG)
         cursor = conn.cursor()
         df_arquivo_atual = extrair_dados_do_excel(caminho_arquivo, lojas_map)
         
@@ -173,6 +175,10 @@ def processar_arquivo(caminho_arquivo, lojas_map, conn):
         if conn and conn.open:
             conn.rollback()
         raise e
+    
+    finally:
+        if conn and conn.open:
+            conn.close()
 
 def main():
     """Função principal para execução autônoma do script."""

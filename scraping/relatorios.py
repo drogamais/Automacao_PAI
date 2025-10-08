@@ -51,7 +51,7 @@ def _selecionar_ano(driver, wait, ano_alvo_str, gui_callback):
 
     raise Exception(f"Não foi possível selecionar o ano {ano_alvo} após 10 tentativas.")
 
-def executar_acoes_pai(driver, wait, cnpj_alvo, ano_inicial, mes_inicial, ano_final, mes_final, gui_callback, lojas_map, conn):
+def executar_acoes_pai(driver, wait, cnpj_alvo, ano_inicial, mes_inicial, ano_final, mes_final, gui_callback, lojas_map):
     """
     Executa o download e o processamento de todos os relatórios, navegando pela paginação.
     """
@@ -166,9 +166,9 @@ def executar_acoes_pai(driver, wait, cnpj_alvo, ano_inicial, mes_inicial, ano_fi
                     for file_path in downloaded_files:
                         print(f"Processando: {os.path.basename(file_path)}")
                         if "financeiro" in file_path.lower():
-                            financeiro.processar_arquivo(file_path, lojas_map, conn)
+                            financeiro.processar_arquivo(file_path, lojas_map)
                         elif "performance" in file_path.lower():
-                            performance.processar_arquivo(file_path, lojas_map, conn)
+                            performance.processar_arquivo(file_path, lojas_map)
                         os.remove(file_path)
                 else:
                     print(f"Relatório com status '{status_element.text}' não será baixado.")
@@ -181,6 +181,8 @@ def executar_acoes_pai(driver, wait, cnpj_alvo, ano_inicial, mes_inicial, ano_fi
                 continue
         
         print("\nProcesso de scraping finalizado.")
+
+        gui_callback.atualizar_progresso(100, 100, f"Processo de scraping finalizado.")
 
     except InterruptedError as e:
         print(f"Processo interrompido pelo usuário: {e}")

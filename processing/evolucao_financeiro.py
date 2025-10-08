@@ -103,15 +103,22 @@ def extrair_dados_do_excel(caminho_arquivo, lojas_map):
 
 def main():
     conn = None
+    lojas_map = {}
     try:
         print("\n--- INICIANDO PROCESSAMENTO DE DADOS DE EVOLUÇÃO FINANCEIRA ---")
         
+        # Etapa 1: Carregar mapa de lojas com conexão de curta duração
         print("Carregando lojas...")
-        conn = mariadb.connect(**DB_CONFIG)
-        cursor = conn.cursor()
-        cursor.execute("SELECT loja_numero, fantasia FROM bronze_lojas")
-        lojas_map = {int(numero): nome for numero, nome in cursor.fetchall() if numero is not None}
+        connect_args = DB_CONFIG.copy()
+        connect_args['reconnect'] = True  # Mantém a reconexão por segurança
+        
+        with mariadb.connect(**connect_args) as temp_conn:
+            cursor = temp_conn.cursor()
+            cursor.execute("SELECT loja_numero, fantasia FROM bronze_lojas")
+            lojas_map = {int(numero): nome for numero, nome in cursor.fetchall() if numero is not None}
+        print(f"{len(lojas_map)} lojas carregadas.")
 
+        # Etapa 2: Ler e processar todos os arquivos Excel em memória
         arquivos_excel = [
             f for f in os.listdir(PASTA_DOS_ARQUIVOS_EXCEL) 
             if f.endswith('.xlsx') and 'evolução' in f.lower() and not f.startswith('~$') and 'performance' not in f.lower()
@@ -130,57 +137,60 @@ def main():
     
         if not todos_os_dados:
             print("\nNenhum dado válido de evolução foi extraído. Encerrando.")
-        else:
-            df_final_completo = pd.concat(todos_os_dados, ignore_index=True)
-            df_final_completo = df_final_completo.replace({np.nan: None})
+            return
 
-            # Adiciona colunas vazias para manter a compatibilidade com a tabela
-            df_final_completo['valor_media_loja_6m'] = None
-            df_final_completo['percentual_media_loja_6m'] = None
-            df_final_completo['valor_media_faixa_faturamento_6m'] = None
-            df_final_completo['percentual_media_faixa_faturamento_6m'] = None
-            df_final_completo['valor_media_febrafar_6m'] = None
-            df_final_completo['percentual_media_febrafar_6m'] = None
-            
-            sql_insert = f"""
-                INSERT INTO {TABLE_NAME} (
-                    loja_numero, loja_nome, data_ref, indicador_nome, 
-                    valor_geral, percentual_geral,
-                    valor_media_loja_6m, percentual_media_loja_6m,
-                    valor_media_faixa_faturamento_6m, percentual_media_faixa_faturamento_6m,
-                    valor_media_febrafar_6m, percentual_media_febrafar_6m
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE
-                    loja_nome=VALUES(loja_nome),
-                    valor_geral=VALUES(valor_geral),
-                    percentual_geral=VALUES(percentual_geral)
-            """
-            
-            dados_para_inserir = [tuple(row) for row in df_final_completo.to_numpy()]
-            
-            # --- LÓGICA DE BATCH APLICADA AQUI ---
-            tamanho_lote = 100
-            total_registros = len(dados_para_inserir)
+        df_final_completo = pd.concat(todos_os_dados, ignore_index=True)
+        df_final_completo = df_final_completo.replace({np.nan: None})
 
-            print(f"\nIniciando inserção/atualização de {total_registros} registros de evolução em lotes de {tamanho_lote}...")
-            
-            registros_processados = 0
-            for i in range(0, total_registros, tamanho_lote):
-                lote_atual = dados_para_inserir[i:i + tamanho_lote]
-                cursor.executemany(sql_insert, lote_atual)
-                conn.commit()
-                registros_processados += len(lote_atual)
-                print(f"  -> Lote de {len(lote_atual)} registros processado. Total: {registros_processados}/{total_registros}")
+        # Adiciona colunas vazias
+        df_final_completo['valor_media_loja_6m'] = None
+        df_final_completo['percentual_media_loja_6m'] = None
+        df_final_completo['valor_media_faixa_faturamento_6m'] = None
+        df_final_completo['percentual_media_faixa_faturamento_6m'] = None
+        df_final_completo['valor_media_febrafar_6m'] = None
+        df_final_completo['percentual_media_febrafar_6m'] = None
+        
+        sql_insert = f"""
+            INSERT INTO {TABLE_NAME} (
+                loja_numero, loja_nome, data_ref, indicador_nome, 
+                valor_geral, percentual_geral,
+                valor_media_loja_6m, percentual_media_loja_6m,
+                valor_media_faixa_faturamento_6m, percentual_media_faixa_faturamento_6m,
+                valor_media_febrafar_6m, percentual_media_febrafar_6m
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE
+                loja_nome=VALUES(loja_nome),
+                valor_geral=VALUES(valor_geral),
+                percentual_geral=VALUES(percentual_geral)
+        """
+        
+        dados_para_inserir = [tuple(row) for row in df_final_completo.to_numpy()]
+        
+        # Etapa 3: Abrir nova conexão apenas para a inserção dos dados
+        conn = mariadb.connect(**connect_args)
+        cursor = conn.cursor()
+        
+        tamanho_lote = 100 
+        total_registros = len(dados_para_inserir)
 
-            print(f"SUCESSO! Operação concluída na tabela '{TABLE_NAME}'.")
+        print(f"\nIniciando inserção/atualização de {total_registros} registros de evolução em lotes de {tamanho_lote}...")
+        
+        registros_processados = 0
+        for i in range(0, total_registros, tamanho_lote):
+            lote_atual = dados_para_inserir[i:i + tamanho_lote]
+            cursor.executemany(sql_insert, lote_atual)
+            conn.commit()
+            registros_processados += len(lote_atual)
+            print(f"  -> Lote de {len(lote_atual)} registros processado. Total: {registros_processados}/{total_registros}")
+
+        print(f"SUCESSO! Operação concluída na tabela '{TABLE_NAME}'.")
 
     except mariadb.Error as e:
         print(f"ERRO de banco de dados: {e}")
         if conn: conn.rollback()
-        # Lança a exceção para que o controller saiba que algo deu errado
         raise e
     finally:
-        if conn:
+        if conn and conn.open:
             conn.close()
             print("Conexão com o banco de dados fechada.")
 

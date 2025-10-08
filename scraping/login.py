@@ -21,6 +21,7 @@ def login_e_navega_para_pai(driver, wait, gui_callback):
     SENHA = LOGIN_CONFIG['senha']
     URL_LOGIN = "https://orion.febrafar.com.br/login"
 
+    gui_callback.atualizar_progresso(33, 100, "Acessando a página da FEBRAFAR...")
     print("Iniciando o navegador e acessando a página de login...")
     driver.get(URL_LOGIN)
     
@@ -31,6 +32,8 @@ def login_e_navega_para_pai(driver, wait, gui_callback):
     wait.until(EC.visibility_of_element_located((By.ID, "senha"))).send_keys(SENHA)
     wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Entrar')]"))).click()
     wait.until(EC.url_changes(URL_LOGIN))
+    
+    gui_callback.atualizar_progresso(66, 100, "Login realizado com sucesso!")
     print("\nLogin realizado com sucesso!")
 
     print("Aguardando 3 segundos para o dashboard carregar completamente...")
@@ -76,6 +79,8 @@ def login_e_navega_para_pai(driver, wait, gui_callback):
         driver.switch_to.window(janela_original)
         raise Exception("Não foi possível encontrar a nova aba do aplicativo PAI.")
         
+    gui_callback.atualizar_progresso(100, 100, "Página do PAI acessada com sucesso!")
     print(f"Foco do Selenium mudado para a nova aba com título: '{driver.title}'")
     stoppable_sleep(2, gui_callback)
     print("\nNavegação para o PAI realizada com sucesso na nova aba!")
+    gui_callback.atualizar_progresso(0, 100, "Primeira Etapa conclúida!")

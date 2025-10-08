@@ -1,22 +1,16 @@
 # Arquivo: controller/automation.py
-import mariadb
-import sys
 from selenium.webdriver.support.ui import WebDriverWait
 
 from scraping import login, relatorios, evolucao, busca
 from processing import evolucao_financeiro, evolucao_performance
 
 from utils import database, system, webdriver
-from utils.config import DB_CONFIG
 
 def executar_workflow_completo(loja_numero, ano_inicial, mes_inicial, ano_final, mes_final, gui_callback, debug_mode):
     driver = None
-    conn = None
     try:
         system.limpar_pasta_downloads()
         gui_callback.atualizar_progresso(0, 100, f"Buscando CNPJ para a loja {loja_numero}...")
-        
-        conn = mariadb.connect(**DB_CONFIG)
         
         lojas_map = database.carregar_mapa_lojas()
         
@@ -33,15 +27,13 @@ def executar_workflow_completo(loja_numero, ano_inicial, mes_inicial, ano_final,
         login.login_e_navega_para_pai(driver, wait, gui_callback)
         
         if gui_callback.stop_requested: raise InterruptedError("Parada solicitada.")
-        relatorios.executar_acoes_pai(driver, wait, cnpj_selecionado, ano_inicial, mes_inicial, ano_final, mes_final, gui_callback, lojas_map, conn)
+        relatorios.executar_acoes_pai(driver, wait, cnpj_selecionado, ano_inicial, mes_inicial, ano_final, mes_final, gui_callback, lojas_map)
         
     except Exception as e:
         raise e
     finally:
         if driver:
             driver.quit()
-        if conn and conn.open:
-            conn.close()
 
 def executar_workflow_evolucao(loja_numero, ano_inicial, mes_inicial, ano_final, mes_final, gui_callback, debug_mode):
     driver = None
@@ -69,6 +61,8 @@ def executar_workflow_evolucao(loja_numero, ano_inicial, mes_inicial, ano_final,
         gui_callback.atualizar_progresso(50, 100, "Processando Evolução de Performance...")
         evolucao_performance.main()
         
+        gui_callback.atualizar_progresso(100, 100, "Dados inseridos no banco com sucesso!")
+
     finally:
         if driver:
             driver.quit()
@@ -117,7 +111,6 @@ def executar_workflow_em_lote(lojas_selecionadas, ano_inicial, mes_inicial, ano_
     gui_callback.atualizar_progresso(0, total_lojas, f"Iniciando automação em lote para {total_lojas} lojas.")
     
     driver = None
-    conn = None
     try:
         gui_callback.atualizar_progresso(0, total_lojas, "Iniciando navegador e fazendo login (uma vez)...")
         driver = webdriver.setup_driver(debug_mode)
@@ -125,8 +118,6 @@ def executar_workflow_em_lote(lojas_selecionadas, ano_inicial, mes_inicial, ano_
         login.login_e_navega_para_pai(driver, wait, gui_callback)
 
         lojas_map = database.carregar_mapa_lojas() 
-
-        conn = mariadb.connect(**DB_CONFIG)
 
         for i, (chk_widget, loja_info) in enumerate(lojas_selecionadas):
             if gui_callback.stop_requested:
@@ -138,7 +129,7 @@ def executar_workflow_em_lote(lojas_selecionadas, ano_inicial, mes_inicial, ano_
             gui_callback.atualizar_progresso(i, total_lojas, f"Processando {i+1}/{total_lojas}: {loja_numero}")
             
             try:
-                relatorios.executar_acoes_pai(driver, wait, cnpj, ano_inicial, mes_inicial, ano_final, mes_final, gui_callback, lojas_map, conn)
+                relatorios.executar_acoes_pai(driver, wait, cnpj, ano_inicial, mes_inicial, ano_final, mes_final, gui_callback, lojas_map)
                 gui_callback.marcar_loja_como_concluida(chk_widget)
             except Exception as e:
                 print(f"Erro ao processar a loja {loja_numero}: {e}. Continuando para a próxima...")
@@ -152,9 +143,6 @@ def executar_workflow_em_lote(lojas_selecionadas, ano_inicial, mes_inicial, ano_
     finally:
         if driver:
             driver.quit()
-        if conn and conn.open:
-            conn.close()
-            print("Conexão com o banco de dados (lote) fechada.")
 
     if not gui_callback.stop_requested:
         gui_callback.atualizar_progresso(total_lojas, total_lojas, "Automação em lote finalizada.")

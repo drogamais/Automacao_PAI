@@ -21,3 +21,6 @@ venv/
 
 # Arquivos de configuração com senhas
 config.json
+
+# debug
+automacao_pai.log
