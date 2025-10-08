@@ -1,6 +1,6 @@
 # Arquivo: main.py
 import ttkbootstrap as ttk
-from view.app_controller import AppController
+from view.view_logic import AppController
 from utils.config import resource_path # Importe a função resource_path
 
 if __name__ == "__main__":
