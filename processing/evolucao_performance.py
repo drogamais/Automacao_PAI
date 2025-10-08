@@ -1,3 +1,4 @@
+# Arquivo: processing/evolucao_performance.py
 import os
 import re
 import pandas as pd
@@ -7,21 +8,17 @@ from datetime import datetime
 import numpy as np
 from utils.config import DB_CONFIG
 
-# Tabela usada no banco
 TABLE_NAME = "bronze_pai_performance"
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 PASTA_DOS_ARQUIVOS_EXCEL = os.path.join(PROJECT_ROOT, "downloads")
 
-# --- REGRAS DE EXTRAÇÃO PARA PERFORMANCE ---
 LINHAS_PARA_EXTRAIR = [
     2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
     31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44
 ]
-COLUNA_INDICADORES = 1 # Corresponde à coluna 'B'
+COLUNA_INDICADORES = 1
 
-# --- FUNÇÃO AUXILIAR ---
 def limpar_valor(valor_str):
-    """Converte uma string formatada ('1.234,56' ou '82,18') para um número float."""
     if valor_str is None or str(valor_str).strip() in ['', '-']: return None
     try:
         valor_limpo = str(valor_str).replace('.', '').replace(',', '.')
@@ -46,8 +43,6 @@ def extrair_dados_do_excel(caminho_arquivo, lojas_map):
     total_linhas_df = df_excel.shape[0]
 
     for col_idx in range(2, df_excel.shape[1]):
-        # --- LINHA CORRIGIDA ---
-        # Adicionado .strip() para remover espaços em branco antes ou depois da data
         header_value = str(df_excel.iat[0, col_idx]).strip()
         
         if "Média no Período" in header_value:
@@ -56,7 +51,6 @@ def extrair_dados_do_excel(caminho_arquivo, lojas_map):
         try:
             data_ref = datetime.strptime(f"01/{header_value}", "%d/%m/%Y").date()
         except (ValueError, TypeError):
-            # Esta linha agora vai pular colunas vazias ou mal formatadas, mas deve pegar a primeira data corretamente
             continue
 
         for num_linha in LINHAS_PARA_EXTRAIR:
@@ -126,6 +120,7 @@ def main():
             df_final_completo = pd.concat(todos_os_dados, ignore_index=True)
             df_final_completo = df_final_completo.replace({np.nan: None})
 
+            # Adiciona colunas vazias para manter a compatibilidade
             df_final_completo['metrica_media_loja_6m'] = None
             df_final_completo['metrica_media_faixa_faturamento_6m'] = None
             df_final_completo['metrica_media_febrafar_6m'] = None
@@ -143,17 +138,29 @@ def main():
             
             dados_para_inserir = [tuple(row) for row in df_final_completo.to_numpy()]
             
-            print(f"\nIniciando inserção/atualização de {len(dados_para_inserir)} registros de evolução de performance...")
-            cursor.executemany(sql_insert, dados_para_inserir)
-            conn.commit()
-            print(f"SUCESSO! {cursor.rowcount} registros foram inseridos/atualizados na tabela '{TABLE_NAME}'.")
+            # --- LÓGICA DE BATCH APLICADA AQUI ---
+            tamanho_lote = 100
+            total_registros = len(dados_para_inserir)
+
+            print(f"\nIniciando inserção/atualização de {total_registros} registros de evolução de performance em lotes de {tamanho_lote}...")
+            
+            registros_processados = 0
+            for i in range(0, total_registros, tamanho_lote):
+                lote_atual = dados_para_inserir[i:i + tamanho_lote]
+                cursor.executemany(sql_insert, lote_atual)
+                conn.commit()
+                registros_processados += len(lote_atual)
+                print(f"  -> Lote de {len(lote_atual)} registros processado. Total: {registros_processados}/{total_registros}")
+
+            print(f"SUCESSO! Operação concluída na tabela '{TABLE_NAME}'.")
 
     except mariadb.Error as e:
-        print(f"ERRO: {e}")
-        if conn and conn.open: conn.rollback()
-        sys.exit(1)
+        print(f"ERRO de banco de dados: {e}")
+        if conn: conn.rollback()
+        # Lança a exceção para que o controller saiba que algo deu errado
+        raise e
     finally:
-        if conn and conn.open:
+        if conn:
             conn.close()
             print("Conexão com o banco de dados fechada.")
         print("--- PROCESSAMENTO DE EVOLUÇÃO DE PERFORMANCE FINALIZADO ---\n")

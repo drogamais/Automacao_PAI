@@ -43,7 +43,6 @@ def executar_workflow_completo(loja_numero, ano_inicial, mes_inicial, ano_final,
         if conn and conn.open:
             conn.close()
 
-
 def executar_workflow_evolucao(loja_numero, ano_inicial, mes_inicial, ano_final, mes_final, gui_callback, debug_mode):
     driver = None
     try:
@@ -73,7 +72,6 @@ def executar_workflow_evolucao(loja_numero, ano_inicial, mes_inicial, ano_final,
     finally:
         if driver:
             driver.quit()
-
 
 def executar_workflow_busca(ano_alvo, gui_callback, results_callback, debug_mode):
     driver = None
