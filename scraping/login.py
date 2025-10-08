@@ -36,9 +36,6 @@ def login_e_navega_para_pai(driver, wait, gui_callback):
     gui_callback.atualizar_progresso(66, 100, "Login realizado com sucesso!")
     print("\nLogin realizado com sucesso!")
 
-    print("Aguardando 3 segundos para o dashboard carregar completamente...")
-    stoppable_sleep(3, gui_callback)
-
     print("Aguardando o cabeçalho da página (id='header') carregar...")
     wait.until(EC.visibility_of_element_located((By.ID, "header")))
     print("Cabeçalho encontrado.")
